@@ -33,18 +33,18 @@ func (s *Service) PutMessage(ctx context.Context, rw http.ResponseWriter, req *h
 	}
 
 	userFor := req.FormValue("callee")
-	if userFor != "" {
+	if userFor == "" {
 		http.Error(rw, "Destination user not found", http.StatusBadRequest)
 		return
 	}
 	messageType := req.FormValue("type")
-	if messageType != "" {
+	if messageType == "" {
 		http.Error(rw, "Not found type of message", http.StatusBadRequest)
 		return
 	}
 
 	content := req.FormValue("content")
-	if content != "" {
+	if content == "" {
 		http.Error(rw, "Not found content of message", http.StatusBadRequest)
 		return
 	}

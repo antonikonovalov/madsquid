@@ -4,10 +4,11 @@ var callButton = document.getElementById('callButton');
 var acceptButton = document.getElementById('acceptButton');
 var hangupButton = document.getElementById('hangupButton');
 callButton.disabled = true;
-acceptButton.disabled = true;
+// acceptButton.disabled = true;
 hangupButton.disabled = true;
 
 callButton.onclick = call;
+hangupButton.onclick = hangup;
 
 // var startTime;
 var localVideo = document.getElementById('localVideo');
@@ -72,8 +73,7 @@ function SignalingChannel() {
 		this.timerId = setTimeout(function () {self.getMessages()}, 1000)
 	};
 
-	this.send = function(callee, type, content) {
-		console.log(userNameInput.value + ' => ' + callee)
+	this.send = function(callee, type, obj) {
 		if (userNameInput.value) {
 			$.ajax('/messages', {
 				method: 'PUT',
@@ -81,7 +81,7 @@ function SignalingChannel() {
 				data: {
 					callee: callee,
 					type: type,
-					content: content
+					content: JSON.stringify(obj)
 				},
 
 				headers: {
@@ -101,9 +101,11 @@ signalingChannel.start()
 function call() {
 	pc = new RTCPeerConnection(null);
 
+    hangupButton.disabled = false;
+
     // send any ice candidates to the other peer
     pc.onicecandidate = function (evt) {
-    	console.log('Event "onicecandidate"')
+    	console.log('Event "onicecandidate"');
         signalingChannel.send(userCallee.value, "candidate", evt.candidate);
     };
 
@@ -111,37 +113,28 @@ function call() {
     pc.onnegotiationneeded = function () {
     	console.log('Event "onnegotiationneeded"')
         pc.createOffer().then(function (offer) {
-            return pc.setLocalDescription(offer);
+            pc.setLocalDescription(offer);
         })
         .then(function () {
             // send the offer to the other peer
-            signalingChannel.send(userCallee.value, "desc", pc.localDescription);
+            signalingChannel.send(userCallee.value, "offer", pc.localDescription);
         })
         .catch(logError);
     };
 
-    // once remote video track arrives, show it in the remote video element
-    // pc.ontrack = function (evt) {
-    // 	console.log('Event "ontrack"')
-    //     if (evt.track.kind === "video")
-    //       remoteVideo.srcObject = evt.streams[0];
-    // };
     pc.onaddstream = gotRemoteStream;
 
     // get a local stream, show it in a self-view and add it to be sent
     navigator.mediaDevices.getUserMedia({ audio: true, video: true })
     .then (function (stream) {
-        pc.addStream(stream)
-        localVideo.srcObject = stream;
-
-        // var videoTracks = stream.getVideoTracks()
-        // var audioTracks = stream.getAudioTracks()
-        // if (audioTracks.length > 0)
-        //     pc.addTrack(audioTracks[0], stream);
-        // if (videoTracks.length > 0)
-        //     pc.addTrack(videoTracks[0], stream);
+        pc.addStream(stream);
     })
     .catch(logError);
+}
+
+function hangup() {
+    pc.close();
+    hangupButton.disabled = true;
 }
 
 function parseMsg(data) {
@@ -149,35 +142,45 @@ function parseMsg(data) {
 		console.log('offer received')
 		pc = new RTCPeerConnection(null);
 
+        hangupButton.disabled = false;
+
 		pc.onicecandidate = function (evt) {
     		console.log('Event "onicecandidate"')
-        	signalingChannel.send(userCallee.value, "candidate", evt.candidate);
-    	};
-    	pc.ontrack = function (evt) {
-    		console.log('Event "ontrack"')
-        	if (evt.track.kind === "video")
-          	remoteVideo.srcObject = evt.streams[0];
+        	signalingChannel.send(data.from, "candidate", evt.candidate);
     	};
     	pc.onaddstream = gotRemoteStream;
 
-        pc.setRemoteDescription(data.content).then(function () {
+        pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.content)))
+        .then (function() {
+            return navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+        })
+        .then (function (stream) {
+            pc.addStream(stream)
+        })
+        .then (function() {
             return pc.createAnswer();
         })
         .then(function (answer) {
             return pc.setLocalDescription(answer);
         })
         .then(function () {
-            signalingChannel.send(data.from, "desc", pc.localDescription);
+            signalingChannel.send(data.from, "answer", pc.localDescription);
         })
         .catch(logError);
+
 	} else if (data.type == "answer") {
 		console.log('answer received')
-        pc.setRemoteDescription(data.content).catch(logError);
+        pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.content)))
+        .catch(logError);
+
     } else if (data.type == "candidate") {
-    	console.log('candidate received')
-    	pc.addIceCandidate(data.content).catch(logError);
+    	console.log('candidate received');
+        if (data.content) {
+    	   pc.addIceCandidate(JSON.parse(data.content)).catch(logError);
+        }
+
     } else {
-        console.log("Unsupported SDP type. Your code may differ here.");
+        console.log("Unsupported SDP type: " + data.type + ". Your code may differ here.");
     }
 }
 
