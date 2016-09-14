@@ -7,7 +7,7 @@ import (
 )
 
 type Service struct {
-	sync.RWMutex
+	sync.Mutex
 	messages map[string][]*Message
 }
 

@@ -1,1 +1,27 @@
-test
+<html>
+<head>
+	<title>WebRTC test page</title>
+	<link rel="stylesheet" href="/main.css" />
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+	<script src="//webrtc.github.io/adapter/adapter-latest.js"></script>
+</head>
+<body>
+<h1>WebRTC test page</h1>
+<div>
+	Local video:<br>
+    <video id="localVideo" autoplay muted></video>
+</div>
+<div>
+	Remote video:<br>
+    <video id="remoteVideo" autoplay></video>
+</div>
+<div>
+	Your name: <input type="text" id="userName" /><br>
+	Callee name: <input type="text" id="userCallee" /><br>
+	<button id="callButton">Call</button>
+	<button id="acceptButton">Accept</button>
+	<button id="hangupButton">Hang Up</button>
+</div>
+<script src="/main.js"></script>
+</body>
+</html>
