@@ -3,7 +3,7 @@ package server
 import "flag"
 
 var (
-	fAddr = flag.String("addr", "localhost:8080", "host:port for MadSquid")
+	fAddr = flag.String("addr", "localhost:8888", "host:port for MadSquid")
 )
 
 type Config struct {
