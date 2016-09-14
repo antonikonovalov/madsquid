@@ -43,14 +43,9 @@ function gotStream(stream) {
 function start() {
   console.log('Requesting local stream');
   callButton.disabled = true;
-  navigator.mediaDevices.getUserMedia({
-    audio: true,
-    video: true
-  })
+  navigator.mediaDevices.getUserMedia({ audio: true, video: true })
   .then(gotStream)
-  .catch(function(e) {
-    alert('getUserMedia() error: ' + e.name);
-  });
+  .catch(logError);
 };
 
 function SignalingChannel() {
@@ -104,15 +99,17 @@ var signalingChannel = new SignalingChannel()
 signalingChannel.start()
 
 function call() {
-	pc = new webkitRTCPeerConnection(null);
+	pc = new RTCPeerConnection(null);
 
     // send any ice candidates to the other peer
     pc.onicecandidate = function (evt) {
+    	console.log('Event "onicecandidate"')
         signalingChannel.send(userCallee.value, "candidate", evt.candidate);
     };
 
     // let the "negotiationneeded" event trigger offer generation
     pc.onnegotiationneeded = function () {
+    	console.log('Event "onnegotiationneeded"')
         pc.createOffer().then(function (offer) {
             return pc.setLocalDescription(offer);
         })
@@ -124,24 +121,44 @@ function call() {
     };
 
     // once remote video track arrives, show it in the remote video element
-    pc.ontrack = function (evt) {
-        if (evt.track.kind === "video")
-          remoteView.srcObject = evt.streams[0];
-    };
+    // pc.ontrack = function (evt) {
+    // 	console.log('Event "ontrack"')
+    //     if (evt.track.kind === "video")
+    //       remoteVideo.srcObject = evt.streams[0];
+    // };
+    pc.onaddstream = gotRemoteStream;
 
     // get a local stream, show it in a self-view and add it to be sent
-    navigator.mediaDevices.getUserMedia({ "audio": true, "video": true }, function (stream) {
-        selfView.srcObject = stream;
-        if (stream.getAudioTracks().length > 0)
-            pc.addTrack(stream.getAudioTracks()[0], stream);
-        if (stream.getVideoTracks().length > 0)
-            pc.addTrack(stream.getVideoTracks()[0], stream);
-    }, logError);
+    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+    .then (function (stream) {
+        pc.addStream(stream)
+        localVideo.srcObject = stream;
+
+        // var videoTracks = stream.getVideoTracks()
+        // var audioTracks = stream.getAudioTracks()
+        // if (audioTracks.length > 0)
+        //     pc.addTrack(audioTracks[0], stream);
+        // if (videoTracks.length > 0)
+        //     pc.addTrack(videoTracks[0], stream);
+    })
+    .catch(logError);
 }
 
 function parseMsg(data) {
 	if (data.type == "offer") {
-		pc = new webkitRTCPeerConnection(null);
+		console.log('offer received')
+		pc = new RTCPeerConnection(null);
+
+		pc.onicecandidate = function (evt) {
+    		console.log('Event "onicecandidate"')
+        	signalingChannel.send(userCallee.value, "candidate", evt.candidate);
+    	};
+    	pc.ontrack = function (evt) {
+    		console.log('Event "ontrack"')
+        	if (evt.track.kind === "video")
+          	remoteVideo.srcObject = evt.streams[0];
+    	};
+    	pc.onaddstream = gotRemoteStream;
 
         pc.setRemoteDescription(data.content).then(function () {
             return pc.createAnswer();
@@ -154,12 +171,19 @@ function parseMsg(data) {
         })
         .catch(logError);
 	} else if (data.type == "answer") {
+		console.log('answer received')
         pc.setRemoteDescription(data.content).catch(logError);
     } else if (data.type == "candidate") {
+    	console.log('candidate received')
     	pc.addIceCandidate(data.content).catch(logError);
     } else {
         console.log("Unsupported SDP type. Your code may differ here.");
     }
+}
+
+function gotRemoteStream(e) {
+  remoteVideo.srcObject = e.stream;
+  console.log('received remote stream');
 }
 
 function logError(error) {
