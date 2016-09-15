@@ -29,7 +29,9 @@ func (s *Service) SentFrom(userFrom string, m []byte) error {
 		if m, err = json.Marshal(outM); err != nil {
 			return err
 		}
-		ws.Send(m)
+		if err = ws.Send(m); err != nil {
+			return err
+		}
 	}
 	return nil
 }

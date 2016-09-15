@@ -44,8 +44,12 @@ func NewWS(rw http.ResponseWriter, req *http.Request) (*WS, error) {
 	}, nil
 }
 
-func (s *WS) Send(msg []byte) {
-	s.in <- msg
+func (s *WS) Send(msg []byte) error {
+	s.conn.SetWriteDeadline(time.Now().Add(writeWait))
+	if err := s.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *WS) Close() error {
@@ -60,7 +64,7 @@ func (s *WS) Run() <-chan []byte {
 	out := make(chan []byte)
 	runSend := make(chan struct{})
 	runReceive := make(chan struct{})
-	go s.sendProcess(runSend)
+	go s.pingProcess(runSend)
 	go s.receiveProcess(out, runReceive)
 
 	var (
@@ -83,7 +87,7 @@ func (s *WS) Run() <-chan []byte {
 	return out
 }
 
-func (s *WS) sendProcess(runned chan<- struct{}) {
+func (s *WS) pingProcess(runned chan<- struct{}) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -93,18 +97,6 @@ func (s *WS) sendProcess(runned chan<- struct{}) {
 	runned <- struct{}{}
 	for {
 		select {
-		case msg, ok := <-s.in:
-			if !ok {
-				return
-			}
-
-			s.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			err := s.conn.WriteMessage(websocket.TextMessage, msg)
-			if err != nil {
-				log.Printf("WEBSOCKET SEND ERROR: %s", err)
-				return
-			}
-
 		case <-ticker.C:
 			if err := s.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return

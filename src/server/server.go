@@ -19,7 +19,7 @@ func New(config *Config) *App {
 
 func (app *App) Run() {
 	service := handlers.NewService()
-	http.HandleFunc("/ws", handlers.Handler(service.WSHandle))
+	http.HandleFunc("/ws", service.WSHandle)
 	http.Handle("/", http.FileServer(http.Dir("public")))
 	log.Fatal(http.ListenAndServeTLS(app.Config.Addr, app.Config.Cert, app.Config.Key, nil))
 }

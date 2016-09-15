@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"context"
+	"ws"
+
+	"log"
 	"net/http"
 	"sync"
-	"ws"
 )
 
 type Service struct {
@@ -18,22 +19,39 @@ func NewService() *Service {
 	}
 }
 
-type ctxHandler func(context.Context, http.ResponseWriter, *http.Request)
-
-func Handler(h ctxHandler) func(http.ResponseWriter, *http.Request) {
-	return func(rw http.ResponseWriter, req *http.Request) {
-		ctx := context.Background()
-		ctx = SetUserName(ctx, req)
-
-		h(ctx, rw, req)
+func (s *Service) WSHandle(rw http.ResponseWriter, req *http.Request) {
+	user := req.FormValue("user")
+	if user == "" {
+		log.Print("Source user not found")
+		return
 	}
-}
+	s.Lock()
+	if _, ok := s.clients[user]; ok {
+		log.Print("User already exists")
+		s.Unlock()
+		http.Error(rw, "Not found type of message", http.StatusBadRequest)
+		return
+	}
 
-func SetUserName(ctx context.Context, req *http.Request) context.Context {
-	return context.WithValue(ctx, "user", req.FormValue("user"))
-}
+	ws, err := ws.NewWS(rw, req)
+	if err != nil {
+		return
+	}
 
-func GetUserName(ctx context.Context) string {
-	name, _ := ctx.Value("user").(string)
-	return name
+	defer ws.Close()
+
+	s.clients[user] = ws
+	defer func() {
+		s.Lock()
+		delete(s.clients, user)
+		s.Unlock()
+	}()
+	s.Unlock()
+
+	ch := ws.Run()
+	for msg := range ch {
+		if err := s.SentFrom(user, msg); err != nil {
+			log.Printf("SEND ERROR: %s", err)
+		}
+	}
 }
