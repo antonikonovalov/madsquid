@@ -4,16 +4,19 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"ws"
 )
 
 type Service struct {
 	sync.Mutex
-	messages map[string][]*Message
+	// messages map[string][]*Message
+	clients map[string]*ws.WS
 }
 
 func NewService() *Service {
 	return &Service{
-		messages: make(map[string][]*Message),
+		// messages: make(map[string][]*Message),
+		clients: map[string]*ws.WS{},
 	}
 }
 
@@ -29,7 +32,8 @@ func Handler(h ctxHandler) func(http.ResponseWriter, *http.Request) {
 }
 
 func SetUserName(ctx context.Context, req *http.Request) context.Context {
-	return context.WithValue(ctx, "user", req.Header.Get("X-User-Name"))
+	// return context.WithValue(ctx, "user", req.Header.Get("X-User-Name"))
+	return context.WithValue(ctx, "user", req.FormValue("user"))
 }
 
 func GetUserName(ctx context.Context) string {
