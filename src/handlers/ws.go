@@ -4,27 +4,11 @@ import (
 	"ws"
 
 	"context"
-	// "encoding/json"
-	// "golang.org/x/net/websocket"
-	"net/http"
-	// "github.com/gorilla/websocket"
 	"log"
+	"net/http"
 )
 
-// type WSHandler struct {
-// 	service *Service
-// 	user    string
-// }
-
-// func NewWSHandler(service *Service, user string) *WSHandler {
-// 	return &WSHandler{
-// 		service: service,
-// 		user:    user,
-// 	}
-// }
-
 func (s *Service) WSHandle(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
-	// ctx := SetUserName(context.Background(), wsConn.Request())
 	user := GetUserName(ctx)
 	if user == "" {
 		log.Print("Source user not found")
@@ -45,12 +29,6 @@ func (s *Service) WSHandle(ctx context.Context, rw http.ResponseWriter, req *htt
 
 	defer ws.Close()
 
-	// wsConn, err := upgrader.Upgrade(w, r, nil)
-	// if err != nil {
-	// 	log.Print(err)
-	// 	return
-	// }
-
 	s.clients[user] = ws
 	defer func() {
 		s.Lock()
@@ -61,7 +39,6 @@ func (s *Service) WSHandle(ctx context.Context, rw http.ResponseWriter, req *htt
 
 	ch := ws.Run()
 	for msg := range ch {
-		// log.Print(string(msg))
 		if err := s.SentFrom(user, msg); err != nil {
 			log.Printf("SEND ERROR: %s", err)
 		}

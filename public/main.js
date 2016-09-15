@@ -27,8 +27,6 @@ userCalleeInput.disabled = true
 userNameInput.onkeyup = userChanges;
 userCalleeInput.onkeyup = calleeChanges;
 
-// start();
-
 function userChanges(evt) {
 	startButton.disabled = !userNameInput.value
 }
@@ -82,7 +80,7 @@ function start() {
     pc.onaddstream = gotRemoteStream;
 
     console.log('Requesting local stream');
-    navigator.mediaDevices.getUserMedia({ audio: false, video: true })
+    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
     .then(gotStream)
     .catch(logError);
 };
@@ -135,13 +133,11 @@ function SignalingChannel() {
 }
 
 function call() {
-	// pc = new RTCPeerConnection(null);
-
     hangupButton.disabled = false;
     callee = userCalleeInput.value
 
     // get a local stream, show it in a self-view and add it to be sent
-    navigator.mediaDevices.getUserMedia({ audio: false, video: true })
+    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
     .then (function (stream) {
         pc.addStream(stream);
     })
@@ -154,19 +150,17 @@ function hangup() {
 }
 
 function parseMsg(msg) {
-    // if (!msg.content) return
     var data = JSON.parse(msg.content)
     if (!data) return
 	if (data.type == "offer") {
 		console.log('offer received');
-		// pc = new RTCPeerConnection(null);
 
         hangupButton.disabled = false;
         callee = msg.from;
 
         pc.setRemoteDescription(new RTCSessionDescription(data))
         .then(function() {
-            return navigator.mediaDevices.getUserMedia({ audio: false, video: true })
+            return navigator.mediaDevices.getUserMedia({ audio: true, video: true })
         }).then(function (stream) {
             return pc.addStream(stream)
         }).then(function() {
@@ -188,9 +182,6 @@ function parseMsg(msg) {
         if (msg.content) {
     	   pc.addIceCandidate(data).catch(logError);
         }
-
-    // } else {
-    //     console.log("Unsupported SDP type: " + data.type + ". Your code may differ here.");
     }
 }
 

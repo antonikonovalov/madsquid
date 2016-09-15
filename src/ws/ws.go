@@ -1,7 +1,6 @@
 package ws
 
 import (
-	// "golang.org/x/net/websocket"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -96,8 +95,6 @@ func (s *WS) sendProcess(runned chan<- struct{}) {
 		select {
 		case msg, ok := <-s.in:
 			if !ok {
-				// The hub closed the channel.
-				// s.conn.write(websocket.CloseMessage, []byte{})
 				return
 			}
 
@@ -107,14 +104,6 @@ func (s *WS) sendProcess(runned chan<- struct{}) {
 				log.Printf("WEBSOCKET SEND ERROR: %s", err)
 				return
 			}
-
-			// if _, err := s.conn.Write(msg); err != nil {
-			// 	log.Printf("WEBSOCKET SEND ERROR: %s", err)
-			// 	if err = s.conn.Close(); err != nil {
-			// 		log.Printf("WEBSOCKET CLOSE ERROR: %s", err)
-			// 	}
-			// 	return
-			// }
 
 		case <-ticker.C:
 			if err := s.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
@@ -139,7 +128,6 @@ func (s *WS) receiveProcess(out chan<- []byte, runned chan<- struct{}) {
 
 	runned <- struct{}{}
 
-	// var msg = make([]byte, 8192)
 	for {
 		_, msg, err := s.conn.ReadMessage()
 		if err != nil {
@@ -149,7 +137,6 @@ func (s *WS) receiveProcess(out chan<- []byte, runned chan<- struct{}) {
 			}
 			return
 		}
-		// log.Printf("received: %s", string(msg))
 		out <- msg
 	}
 }
