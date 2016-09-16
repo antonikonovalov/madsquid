@@ -226,7 +226,7 @@ function parseMsg(msg) {
     } else {
     	console.log('candidate received');
         if (msg.content) {
-    	   pc.addIceCandidate(data).catch(logError);
+    	   pc.addIceCandidate(new RTCIceCandidate(data)).catch(logError);
         }
     }
 }
