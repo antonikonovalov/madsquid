@@ -10,7 +10,9 @@
 Your name: <input type="text" id="userName" /> <button id="startButton">Start</button> <button id="stopButton">Stop</button>
 <div>
 	Local video:<br>
-    <video id="localVideo" autoplay muted></video>
+    <video id="localVideo" autoplay muted></video><br>
+    <input type="checkbox" id="videoCheckbox" value="1" checked> video
+    <input type="checkbox" id="audioCheckbox" value="1" checked> audio
 </div>
 <div>
 	Remote video:<br>
@@ -19,7 +21,6 @@ Your name: <input type="text" id="userName" /> <button id="startButton">Start</b
 <div>
 	Callee name: <input type="text" id="userCallee" /><br>
 	<button id="callButton">Call</button>
-	<button id="hangupButton">Hang Up</button>
 </div>
 <script src="/main.js"></script>
 </body>

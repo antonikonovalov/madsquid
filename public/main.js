@@ -1,16 +1,16 @@
 'use strict';
 
 var callButton = document.getElementById('callButton');
-var hangupButton = document.getElementById('hangupButton');
+// var hangupButton = document.getElementById('hangupButton');
 var startButton = document.getElementById('startButton');
 var stopButton = document.getElementById('stopButton');
 callButton.disabled = true;
-hangupButton.disabled = true;
+// hangupButton.disabled = true;
 startButton.disabled = true;
 stopButton.disabled = true
 
 callButton.onclick = call;
-hangupButton.onclick = hangup;
+// hangupButton.onclick = hangup;
 startButton.onclick = start;
 stopButton.onclick = stop;
 
@@ -27,6 +27,12 @@ userCalleeInput.disabled = true
 userNameInput.onkeyup = userChanges;
 userCalleeInput.onkeyup = calleeChanges;
 
+var videoCheckbox = document.getElementById('videoCheckbox');
+var audioCheckbox = document.getElementById('audioCheckbox');
+
+videoCheckbox.onclick = changeVideoTracks;
+audioCheckbox.onclick = changeAudioTracks;
+
 function userChanges(evt) {
 	startButton.disabled = !userNameInput.value
 }
@@ -38,11 +44,56 @@ function calleeChanges(evt) {
 var pc;
 var callee;
 var started=false
+var localStream
 var signalingChannel = new SignalingChannel()
+
+function trackOptions() {
+    return {
+        video: videoCheckbox.checked,
+        audio: audioCheckbox.checked,
+    }
+}
+
+function changeVideoTracks() {
+    var localVideoTracks = localStream.getVideoTracks();
+    if (videoCheckbox.checked && localVideoTracks.length<1) {
+        // add video stream
+        navigator.mediaDevices.getUserMedia(trackOptions())
+        .then (function (stream) {
+            localStream = stream;
+            pc.getLocalStreams().forEach(function(s) {pc.removeStream(s)})
+            pc.addStream(stream)
+            localVideo.srcObject = stream
+        })
+    } else if (!videoCheckbox.checked && localVideoTracks.length>0) {
+        // remove all video tracks from local stream
+        localVideoTracks.forEach(function(t) {localStream.removeTrack(t); })
+        localVideo.srcObject = localStream
+    }
+}
+
+function changeAudioTracks() {
+    var localAudioTracks = localStream.getAudioTracks();
+    if (audioCheckbox.checked && localAudioTracks.length<1) {
+        // add audio stream
+        navigator.mediaDevices.getUserMedia(trackOptions())
+        .then (function (stream) {
+            localStream = stream;
+            pc.getLocalStreams().forEach(function(s) {pc.removeStream(s)})
+            pc.addStream(stream)
+            localVideo.srcObject = stream
+        })
+    } else if (!audioCheckbox.checked && localAudioTracks.length>0) {
+        // remove all audio tracks from local stream
+        localAudioTracks.forEach(function(t) {localStream.removeTrack(t); })
+        localVideo.srcObject = localStream
+    }
+}
 
 function gotStream(stream) {
   console.log('Received local stream');
-  localVideo.srcObject = stream;
+  localStream = stream;
+  localVideo.srcObject = localStream;
   callButton.disabled = !(userNameInput.value && userCalleeInput.value);
 }
 
@@ -64,25 +115,16 @@ function start() {
         signalingChannel.send(evt.candidate);
     };
 
-    // let the "negotiationneeded" event trigger offer generation
     pc.onnegotiationneeded = function () {
         console.log('Event "onnegotiationneeded"')
         pc.createOffer().then(function (offer) {
             pc.setLocalDescription(offer);
-        })
-        .then(function () {
-            // send the offer to the other peer
-            signalingChannel.send(pc.localDescription);
+            signalingChannel.send(offer);
         })
         .catch(logError);
     };
 
     pc.onaddstream = gotRemoteStream;
-
-    console.log('Requesting local stream');
-    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-    .then(gotStream)
-    .catch(logError);
 };
 
 function stop() {
@@ -94,9 +136,14 @@ function stop() {
 
     started = false;
 
+    if (pc.signalingState!="closed") pc.close();
+
     localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
     signalingChannel.stop();
-    pc.close();
+    pc.getLocalStreams().forEach(function(s) {
+        s.getTracks().forEach(function(t) {t.stop()});
+    });
 }
 
 function SignalingChannel() {
@@ -133,20 +180,15 @@ function SignalingChannel() {
 }
 
 function call() {
-    hangupButton.disabled = false;
     callee = userCalleeInput.value
 
     // get a local stream, show it in a self-view and add it to be sent
-    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+    navigator.mediaDevices.getUserMedia(trackOptions())
     .then (function (stream) {
+        gotStream(stream);
         pc.addStream(stream);
     })
     .catch(logError);
-}
-
-function hangup() {
-    pc.close();
-    hangupButton.disabled = true;
 }
 
 function parseMsg(msg) {
@@ -155,15 +197,17 @@ function parseMsg(msg) {
 	if (data.type == "offer") {
 		console.log('offer received');
 
-        hangupButton.disabled = false;
         callee = msg.from;
 
         pc.setRemoteDescription(new RTCSessionDescription(data))
         .then(function() {
-            return navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-        }).then(function (stream) {
-            return pc.addStream(stream)
-        }).then(function() {
+            if (pc.getLocalStreams().length==0) {
+                navigator.mediaDevices.getUserMedia(trackOptions()).then(function (stream) {
+                    gotStream(stream);
+                    pc.addStream(stream)
+                })
+                .catch(logError);
+            }
             return pc.createAnswer()
         })
         .then(function (answer) {
