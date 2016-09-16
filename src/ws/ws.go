@@ -23,7 +23,8 @@ var (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize int64 = 32 * 1024
+	// (If you want send many tracks in one stream SDP may be very big)
+	maxMessageSize int64 = 8 * 1024
 )
 
 type WS struct {

@@ -1,20 +1,16 @@
 'use strict';
 
 var callButton = document.getElementById('callButton');
-// var hangupButton = document.getElementById('hangupButton');
 var startButton = document.getElementById('startButton');
 var stopButton = document.getElementById('stopButton');
 callButton.disabled = true;
-// hangupButton.disabled = true;
 startButton.disabled = true;
 stopButton.disabled = true
 
 callButton.onclick = call;
-// hangupButton.onclick = hangup;
 startButton.onclick = start;
 stopButton.onclick = stop;
 
-// var startTime;
 var localVideo = document.getElementById('localVideo');
 var remoteVideo = document.getElementById('remoteVideo');
 
@@ -43,49 +39,47 @@ function calleeChanges(evt) {
 
 var pc;
 var callee;
-var started=false
-var localStream
-var signalingChannel = new SignalingChannel()
+var started=false;
+var localStream;
+var signalingChannel = new SignalingChannel();
 
 function trackOptions() {
     return {
         video: videoCheckbox.checked,
         audio: audioCheckbox.checked,
-    }
+    };
 }
 
 function changeVideoTracks() {
-    var localVideoTracks = localStream.getVideoTracks();
-    if (videoCheckbox.checked && localVideoTracks.length<1) {
+    changeTracks(videoCheckbox.checked, localStream.getVideoTracks())
+}
+
+function changeAudioTracks() {
+    changeTracks(audioCheckbox.checked, localStream.getAudioTracks())
+}
+
+function changeTracks(flag, tracks) {
+    if (!localStream) return;
+    if (flag && tracks.length<1) {
         // add video stream
         navigator.mediaDevices.getUserMedia(trackOptions())
         .then (function (stream) {
             localStream = stream;
-            pc.getLocalStreams().forEach(function(s) {pc.removeStream(s)})
-            pc.addStream(stream)
-            localVideo.srcObject = stream
-        })
-    } else if (!videoCheckbox.checked && localVideoTracks.length>0) {
-        // remove all video tracks from local stream
-        localVideoTracks.forEach(function(t) {localStream.removeTrack(t); })
-        localVideo.srcObject = localStream
-    }
-}
+            // pc.getLocalStreams().forEach(function(s) {pc.removeStream(s)})
+            var streams = pc.getLocalStreams();
 
-function changeAudioTracks() {
-    var localAudioTracks = localStream.getAudioTracks();
-    if (audioCheckbox.checked && localAudioTracks.length<1) {
-        // add audio stream
-        navigator.mediaDevices.getUserMedia(trackOptions())
-        .then (function (stream) {
-            localStream = stream;
-            pc.getLocalStreams().forEach(function(s) {pc.removeStream(s)})
+            streams.forEach(function(s) {pc.removeStream(s)});
             pc.addStream(stream)
+            
             localVideo.srcObject = stream
+            
+            streams.forEach(function(s) {
+                s.getTracks().forEach(function(t) {t.stop()});
+            });
         })
-    } else if (!audioCheckbox.checked && localAudioTracks.length>0) {
-        // remove all audio tracks from local stream
-        localAudioTracks.forEach(function(t) {localStream.removeTrack(t); })
+    } else if (!flag && tracks.length>0) {
+        // remove all tracks from local stream
+        tracks.forEach(function(t) { localStream.removeTrack(t); t.stop(); })
         localVideo.srcObject = localStream
     }
 }
@@ -124,7 +118,14 @@ function start() {
         .catch(logError);
     };
 
-    pc.onaddstream = gotRemoteStream;
+    pc.onaddstream = function(e) {
+        remoteVideo.srcObject = e.stream;
+        console.log('received remote stream');
+    }
+    // pc.ontrack = function(e) {
+    //     remoteVideo.srcObject = e.streams[0];
+    //     console.log('received remote tracks');
+    // }
 };
 
 function stop() {
@@ -144,6 +145,7 @@ function stop() {
     pc.getLocalStreams().forEach(function(s) {
         s.getTracks().forEach(function(t) {t.stop()});
     });
+    localStream = null;
 }
 
 function SignalingChannel() {
@@ -201,7 +203,7 @@ function parseMsg(msg) {
 
         pc.setRemoteDescription(new RTCSessionDescription(data))
         .then(function() {
-            if (pc.getLocalStreams().length==0) {
+            if (pc.getLocalStreams().length<1) {
                 navigator.mediaDevices.getUserMedia(trackOptions()).then(function (stream) {
                     gotStream(stream);
                     pc.addStream(stream)
@@ -227,11 +229,6 @@ function parseMsg(msg) {
     	   pc.addIceCandidate(data).catch(logError);
         }
     }
-}
-
-function gotRemoteStream(e) {
-  remoteVideo.srcObject = e.stream;
-  console.log('received remote stream');
 }
 
 function logError(error) {
