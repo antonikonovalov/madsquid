@@ -21,6 +21,7 @@ func (s *Service) SentFrom(userFrom string, m []byte) error {
 	if err = json.Unmarshal(m, inMsg); err != nil {
 		return err
 	} else {
+
 		s.RLock()
 		ws, ok := s.clients[inMsg.For]
 		s.RUnlock()
