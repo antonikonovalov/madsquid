@@ -96,11 +96,11 @@ function stop() {
 
     localVideo.srcObject = null;
     signalingChannel.stop();
+    pc.close();
 }
 
 function SignalingChannel() {
 	this.start = function() {
-		// this.getMessages()
         this.socket = new WebSocket("wss://"+window.location.host+"/ws?user="+encodeURIComponent(userNameInput.value));
         this.socket.onopen = function() {
             console.log("websocket connected");

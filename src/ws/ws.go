@@ -23,7 +23,7 @@ var (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize int64 = 8192
+	maxMessageSize int64 = 8 * 1024
 )
 
 type WS struct {
@@ -45,8 +45,8 @@ func NewWS(rw http.ResponseWriter, req *http.Request) (*WS, error) {
 }
 
 func (s *WS) Send(msg []byte) error {
-	s.conn.SetWriteDeadline(time.Now().Add(writeWait))
-	if err := s.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+	if err := s.write(websocket.TextMessage, msg); err != nil {
+		log.Printf("WEBSOCKET WRITE ERROR: %s", err)
 		return err
 	}
 	return nil
@@ -98,7 +98,8 @@ func (s *WS) pingProcess(runned chan<- struct{}) {
 	for {
 		select {
 		case <-ticker.C:
-			if err := s.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+			if err := s.write(websocket.PingMessage, []byte{}); err != nil {
+				log.Printf("WEBSOCKET PING ERROR: %s", err)
 				return
 			}
 
@@ -131,4 +132,12 @@ func (s *WS) receiveProcess(out chan<- []byte, runned chan<- struct{}) {
 		}
 		out <- msg
 	}
+}
+
+func (s *WS) write(messageType int, data []byte) error {
+	s.conn.SetWriteDeadline(time.Now().Add(writeWait))
+	if err := s.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+		return err
+	}
+	return nil
 }

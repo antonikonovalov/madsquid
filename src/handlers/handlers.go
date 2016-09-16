@@ -9,7 +9,7 @@ import (
 )
 
 type Service struct {
-	sync.Mutex
+	sync.RWMutex
 	clients map[string]*ws.WS
 }
 
