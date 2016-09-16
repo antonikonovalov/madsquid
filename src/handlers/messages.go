@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 type InMessage struct {
@@ -13,6 +14,14 @@ type InMessage struct {
 type OutMessage struct {
 	From    string          `json:"from"`
 	Content json.RawMessage `json:"content"`
+}
+
+type UsersListMessage struct {
+	// From    string          `json:"from"`
+	Content struct {
+		Type  string   `json:"type"`
+		Users []string `json:"users"`
+	} `json:"content"`
 }
 
 func (s *Service) SentFrom(userFrom string, m []byte) error {
@@ -37,4 +46,33 @@ func (s *Service) SentFrom(userFrom string, m []byte) error {
 		}
 	}
 	return nil
+}
+
+func (s *Service) UsersListSend() {
+	users := []string{}
+	for u, _ := range s.clients {
+		users = append(users, u)
+	}
+
+	msg := &UsersListMessage{
+		Content: struct {
+			Type  string   `json:"type"`
+			Users []string `json:"users"`
+		}{
+			Type:  "users",
+			Users: users,
+		},
+	}
+
+	m, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("MARSHAL ERROR: %s", err)
+		return
+	}
+
+	for _, ws := range s.clients {
+		if err = ws.Send(m); err != nil {
+			log.Printf("WEBSOCKET SENT ERROR: %s", err)
+		}
+	}
 }

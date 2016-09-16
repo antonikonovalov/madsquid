@@ -1,13 +1,10 @@
 'use strict';
 
-var callButton = document.getElementById('callButton');
 var startButton = document.getElementById('startButton');
 var stopButton = document.getElementById('stopButton');
-callButton.disabled = true;
 startButton.disabled = true;
 stopButton.disabled = true
 
-callButton.onclick = call;
 startButton.onclick = start;
 stopButton.onclick = stop;
 
@@ -16,12 +13,8 @@ var remoteVideo = document.getElementById('remoteVideo');
 
 
 var userNameInput = document.getElementById('userName');
-var userCalleeInput = document.getElementById('userCallee');
-
-userCalleeInput.disabled = true
 
 userNameInput.onkeyup = userChanges;
-userCalleeInput.onkeyup = calleeChanges;
 
 var videoCheckbox = document.getElementById('videoCheckbox');
 var audioCheckbox = document.getElementById('audioCheckbox');
@@ -29,12 +22,10 @@ var audioCheckbox = document.getElementById('audioCheckbox');
 videoCheckbox.onclick = changeVideoTracks;
 audioCheckbox.onclick = changeAudioTracks;
 
+var usersSpan = document.getElementById('users');
+
 function userChanges(evt) {
 	startButton.disabled = !userNameInput.value
-}
-
-function calleeChanges(evt) {
-    callButton.disabled = !(userCalleeInput.value && started)
 }
 
 var pc;
@@ -65,7 +56,6 @@ function changeTracks(flag, tracks) {
         navigator.mediaDevices.getUserMedia(trackOptions())
         .then (function (stream) {
             localStream = stream;
-            // pc.getLocalStreams().forEach(function(s) {pc.removeStream(s)})
             var streams = pc.getLocalStreams();
 
             streams.forEach(function(s) {pc.removeStream(s)});
@@ -88,15 +78,12 @@ function gotStream(stream) {
   console.log('Received local stream');
   localStream = stream;
   localVideo.srcObject = localStream;
-  callButton.disabled = !(userNameInput.value && userCalleeInput.value);
 }
 
 function start() {
     userNameInput.disabled = true;
     startButton.disabled = true;
     stopButton.disabled = false;
-
-    userCalleeInput.disabled = false;
 
     started = true;
 
@@ -133,7 +120,7 @@ function stop() {
     startButton.disabled = false;
     stopButton.disabled = true;
 
-    userCalleeInput.disabled = true;
+    usersSpan.innerHTML = '';
 
     started = false;
 
@@ -181,8 +168,8 @@ function SignalingChannel() {
 
 }
 
-function call() {
-    callee = userCalleeInput.value
+function callTo(user) {
+    callee = user
 
     // get a local stream, show it in a self-view and add it to be sent
     navigator.mediaDevices.getUserMedia(trackOptions())
@@ -222,6 +209,22 @@ function parseMsg(msg) {
 		console.log('answer received')
         pc.setRemoteDescription(new RTCSessionDescription(data))
         .catch(logError);
+
+    } else if (data.type == "users") {
+        console.log("get users: " + data.users)
+        usersSpan.innerHTML='';
+        data.users.forEach(function(u) {
+            if (u==userNameInput.value) return;
+            var a = document.createElement('A');
+            a.innerHTML = u;
+            a.href = '#';
+            a.onclick = function() {
+                callTo(u);
+                return false;
+            }
+            usersSpan.appendChild(a)
+            usersSpan.appendChild(document.createTextNode(' '))
+        })
 
     } else {
     	console.log('candidate received');

@@ -41,9 +41,12 @@ func (s *Service) WSHandle(rw http.ResponseWriter, req *http.Request) {
 	defer ws.Close()
 
 	s.clients[user] = ws
+	s.UsersListSend()
+
 	defer func() {
 		s.Lock()
 		delete(s.clients, user)
+		s.UsersListSend()
 		s.Unlock()
 	}()
 	s.Unlock()
