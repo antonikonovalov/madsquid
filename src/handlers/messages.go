@@ -6,13 +6,13 @@ import (
 )
 
 type InMessage struct {
-	For     string `json:"callee"`
-	Content string `json:"content"`
+	For     string          `json:"callee"`
+	Content json.RawMessage `json:"content"`
 }
 
 type OutMessage struct {
-	From    string `json:"from"`
-	Content string `json:"content"`
+	From    string          `json:"from"`
+	Content json.RawMessage `json:"content"`
 }
 
 func (s *Service) SentFrom(userFrom string, m []byte) error {

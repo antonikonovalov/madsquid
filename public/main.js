@@ -119,7 +119,7 @@ function SignalingChannel() {
 
     this.send = function(obj) {
         if (userNameInput.value) {
-            this.socket.send(JSON.stringify({ callee: callee, content: JSON.stringify(obj) }));
+            this.socket.send(JSON.stringify({ callee: callee, content: obj }));
         }
     }
 
@@ -150,7 +150,7 @@ function hangup() {
 }
 
 function parseMsg(msg) {
-    var data = JSON.parse(msg.content)
+    var data = msg.content
     if (!data) return
 	if (data.type == "offer") {
 		console.log('offer received');
