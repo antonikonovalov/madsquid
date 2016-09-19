@@ -36,6 +36,8 @@ func (s *Service) WSHandle(rw http.ResponseWriter, req *http.Request) {
 
 	ws, err := ws.NewWS(rw, req)
 	if err != nil {
+		s.Unlock()
+		log.Printf("WEBSOCKET CONNECTION ERROR: %s", err)
 		return
 	}
 
