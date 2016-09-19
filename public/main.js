@@ -30,7 +30,6 @@ function userChanges(evt) {
 
 var pc;
 var callee;
-var started=false;
 var localStream;
 var signalingChannel = new SignalingChannel();
 
@@ -42,41 +41,24 @@ function trackOptions() {
 }
 
 function changeVideoTracks() {
+    if (!localStream) return;
     changeTracks(videoCheckbox.checked, localStream.getVideoTracks())
 }
 
 function changeAudioTracks() {
+    if (!localStream) return;
     changeTracks(audioCheckbox.checked, localStream.getAudioTracks())
 }
 
 function changeTracks(flag, tracks) {
-    if (!localStream) return;
-    if (flag && tracks.length<1) {
-        // add video stream
-        navigator.mediaDevices.getUserMedia(trackOptions())
-        .then (function (stream) {
-            localStream = stream;
-            var streams = pc.getLocalStreams();
-
-            streams.forEach(function(s) {pc.removeStream(s)});
-            pc.addStream(stream)
-            
-            localVideo.srcObject = stream
-            
-            streams.forEach(function(s) {
-                s.getTracks().forEach(function(t) {t.stop()});
-            });
-        })
-    } else if (!flag && tracks.length>0) {
-        // remove all tracks from local stream
-        tracks.forEach(function(t) { localStream.removeTrack(t); t.stop(); })
-        localVideo.srcObject = localStream
-    }
+    tracks.forEach(function(t) { t.enabled=flag; })
 }
 
 function gotStream(stream) {
   console.log('Received local stream');
   localStream = stream;
+  changeVideoTracks();
+  changeAudioTracks();
   localVideo.srcObject = localStream;
 }
 
@@ -84,8 +66,6 @@ function start() {
     userNameInput.disabled = true;
     startButton.disabled = true;
     stopButton.disabled = false;
-
-    started = true;
 
     signalingChannel.start();
 
@@ -109,10 +89,6 @@ function start() {
         remoteVideo.srcObject = e.stream;
         console.log('received remote stream');
     }
-    // pc.ontrack = function(e) {
-    //     remoteVideo.srcObject = e.streams[0];
-    //     console.log('received remote tracks');
-    // }
 };
 
 function stop() {
@@ -122,16 +98,16 @@ function stop() {
 
     usersSpan.innerHTML = '';
 
-    started = false;
-
-    if (pc.signalingState!="closed") pc.close();
-
     localVideo.srcObject = null;
     remoteVideo.srcObject = null;
     signalingChannel.stop();
-    pc.getLocalStreams().forEach(function(s) {
-        s.getTracks().forEach(function(t) {t.stop()});
-    });
+    
+    if (pc.signalingState!="closed") {
+        pc.getLocalStreams().forEach(function(s) {
+            s.getTracks().forEach(function(t) {t.stop()});
+        });
+        pc.close();
+    }
     localStream = null;
 }
 
@@ -172,7 +148,7 @@ function callTo(user) {
     callee = user
 
     // get a local stream, show it in a self-view and add it to be sent
-    navigator.mediaDevices.getUserMedia(trackOptions())
+    navigator.mediaDevices.getUserMedia({video:true, audio:true})
     .then (function (stream) {
         gotStream(stream);
         pc.addStream(stream);
@@ -191,7 +167,7 @@ function parseMsg(msg) {
         pc.setRemoteDescription(new RTCSessionDescription(data))
         .then(function() {
             if (pc.getLocalStreams().length<1) {
-                navigator.mediaDevices.getUserMedia(trackOptions()).then(function (stream) {
+                navigator.mediaDevices.getUserMedia({video:true, audio:true}).then(function (stream) {
                     gotStream(stream);
                     pc.addStream(stream)
                 })
