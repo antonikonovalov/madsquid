@@ -20,6 +20,7 @@ func New(config *Config) *App {
 func (app *App) Run() {
 	service := handlers.NewService()
 	http.HandleFunc("/ws", service.WSHandle)
+	http.HandleFunc("/messages", service.PostMessage)
 	http.Handle("/", http.FileServer(http.Dir("public")))
 	log.Fatal(http.ListenAndServeTLS(app.Config.Addr, app.Config.Cert, app.Config.Key, nil))
 }

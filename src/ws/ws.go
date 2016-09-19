@@ -136,8 +136,14 @@ func (s *WS) receiveProcess(out chan<- []byte, runned chan<- struct{}) {
 
 func (s *WS) write(messageType int, data []byte) error {
 	s.conn.SetWriteDeadline(time.Now().Add(writeWait))
-	if err := s.conn.WriteMessage(messageType, data); err != nil {
+	w, err := s.conn.NextWriter(messageType)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	w.Write(data)
+
+	err = w.Close()
+
+	return err
 }

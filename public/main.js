@@ -1,5 +1,7 @@
 'use strict';
 
+var signalingMethod = "websocket"; // websocket | post
+
 var startButton = document.getElementById('startButton');
 var stopButton = document.getElementById('stopButton');
 startButton.disabled = true;
@@ -136,7 +138,34 @@ function SignalingChannel() {
 	};
 
     this.send = function(obj) {
-        this.socket.send(JSON.stringify({ callee: callee, content: obj }));
+        if (signalingMethod=='websocket')
+            this.sendWebSocket(obj)
+        else
+            this.sendPost(obj)
+    }
+
+    this.sendWebSocket = function(obj) {
+        this.socket.send(JSON.stringify({ for: callee, content: obj }));
+    }
+
+    this.sendPost = function(obj) {
+        var client = new XMLHttpRequest();
+        client.onload = function() {
+          if (this.status < 200 || this.status >= 300) {
+            logError(this.statusText);
+          }
+        };
+        client.onerror = function () {
+          logError(this.statusText);
+        };
+
+        client.open("POST", "/messages", true);
+        client.setRequestHeader('Content-type', 'application/json; charset=utf-8');
+        client.send(JSON.stringify({
+            for: callee,
+            from: userNameInput.value,
+            content: obj
+        }));
     }
 
     this.stop = function() {
@@ -145,7 +174,6 @@ function SignalingChannel() {
             this.socket = null;
         }
     }
-
 }
 
 function callTo(user) {

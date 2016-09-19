@@ -3,6 +3,8 @@ package handlers
 import (
 	"ws"
 
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -27,9 +29,8 @@ func (s *Service) WSHandle(rw http.ResponseWriter, req *http.Request) {
 	}
 	s.Lock()
 	if _, ok := s.clients[user]; ok {
-		log.Print("User already exists")
 		s.Unlock()
-		http.Error(rw, "Not found type of message", http.StatusBadRequest)
+		httpErr(rw, "User already exists", http.StatusBadRequest)
 		return
 	}
 
@@ -57,4 +58,36 @@ func (s *Service) WSHandle(rw http.ResponseWriter, req *http.Request) {
 			log.Printf("SEND ERROR: %s", err)
 		}
 	}
+}
+
+func (s *Service) PostMessage(rw http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		httpErr(rw, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	decoder := json.NewDecoder(req.Body)
+	var postMsg PostMessage
+	if err := decoder.Decode(&postMsg); err != nil {
+		httpErr(rw, fmt.Sprintf("ERROR JSON DECODE: %s", err), http.StatusInternalServerError)
+	}
+	req.Body.Close()
+
+	msg, err := json.Marshal(&InMessage{
+		For:     postMsg.For,
+		Content: postMsg.Content,
+	})
+	if err != nil {
+		httpErr(rw, fmt.Sprintf("ERROR JSON MARSHAL: %s", err), http.StatusInternalServerError)
+		return
+	}
+	if err := s.SentFrom(postMsg.From, msg); err != nil {
+		httpErr(rw, fmt.Sprintf("SEND ERROR: %s", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func httpErr(rw http.ResponseWriter, msg string, code int) {
+	log.Print(msg)
+	http.Error(rw, msg, code)
 }

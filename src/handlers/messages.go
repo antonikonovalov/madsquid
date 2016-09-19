@@ -6,8 +6,14 @@ import (
 	"log"
 )
 
+type PostMessage struct {
+	For     string          `json:"for"`
+	From    string          `json:"from"`
+	Content json.RawMessage `json:"content"`
+}
+
 type InMessage struct {
-	For     string          `json:"callee"`
+	For     string          `json:"for"`
 	Content json.RawMessage `json:"content"`
 }
 
@@ -17,7 +23,6 @@ type OutMessage struct {
 }
 
 type UsersListMessage struct {
-	// From    string          `json:"from"`
 	Content struct {
 		Type  string   `json:"type"`
 		Users []string `json:"users"`
