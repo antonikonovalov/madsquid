@@ -40,6 +40,12 @@ function trackOptions() {
     };
 }
 
+function iceServers() {
+    return [
+        {url:'stun:stun.l.google.com:19302'}
+    ]
+}
+
 function changeVideoTracks() {
     if (!localStream) return;
     changeTracks(videoCheckbox.checked, localStream.getVideoTracks())
@@ -69,7 +75,7 @@ function start() {
 
     signalingChannel.start();
 
-    pc = new RTCPeerConnection(null);
+    pc = new RTCPeerConnection({iceServers:iceServers()});
     // send any ice candidates to the other peer
     pc.onicecandidate = function (evt) {
         console.log('Event "onicecandidate"');
@@ -130,9 +136,7 @@ function SignalingChannel() {
 	};
 
     this.send = function(obj) {
-        if (userNameInput.value) {
-            this.socket.send(JSON.stringify({ callee: callee, content: obj }));
-        }
+        this.socket.send(JSON.stringify({ callee: callee, content: obj }));
     }
 
     this.stop = function() {
