@@ -22,5 +22,9 @@ func (app *App) Run() {
 	http.HandleFunc("/ws", service.WSHandle)
 	http.HandleFunc("/messages", service.PostMessage)
 	http.Handle("/", http.FileServer(http.Dir("public")))
-	log.Fatal(http.ListenAndServeTLS(app.Config.Addr, app.Config.Cert, app.Config.Key, nil))
+	if app.Config.TLS {
+		log.Fatal(http.ListenAndServeTLS(app.Config.Addr, app.Config.Cert, app.Config.Key, nil))
+	} else {
+		log.Fatal(http.ListenAndServe(app.Config.Addr, nil))
+	}
 }
