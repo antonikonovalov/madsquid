@@ -11,8 +11,6 @@ startButton.onclick = start;
 stopButton.onclick = stop;
 
 var localVideo = document.getElementById('localVideo');
-var remoteVideo = document.getElementById('remoteVideo');
-
 
 var userNameInput = document.getElementById('userName');
 
@@ -24,13 +22,13 @@ var audioCheckbox = document.getElementById('audioCheckbox');
 videoCheckbox.onclick = changeVideoTracks;
 audioCheckbox.onclick = changeAudioTracks;
 
-var usersSpan = document.getElementById('users');
+var usersDiv = document.getElementById('users');
 
 function userChanges(evt) {
-	startButton.disabled = !userNameInput.value
+    startButton.disabled = !userNameInput.value
 }
 
-var pc;
+var pcs = {};
 var callee;
 var localStream;
 var signalingChannel = new SignalingChannel();
@@ -70,33 +68,15 @@ function gotStream(stream) {
   localVideo.srcObject = localStream;
 }
 
+
 function start() {
     userNameInput.disabled = true;
     startButton.disabled = true;
     stopButton.disabled = false;
 
+    localVideo.id = userNameInput.value
+
     signalingChannel.start();
-
-    pc = new RTCPeerConnection({iceServers:iceServers()});
-    // send any ice candidates to the other peer
-    pc.onicecandidate = function (evt) {
-        console.log('Event "onicecandidate"');
-        signalingChannel.send(evt.candidate);
-    };
-
-    pc.onnegotiationneeded = function () {
-        console.log('Event "onnegotiationneeded"')
-        pc.createOffer().then(function (offer) {
-            pc.setLocalDescription(offer);
-            signalingChannel.send(offer);
-        })
-        .catch(logError);
-    };
-
-    pc.onaddstream = function(e) {
-        remoteVideo.srcObject = e.stream;
-        console.log('received remote stream');
-    }
 };
 
 function stop() {
@@ -104,18 +84,20 @@ function stop() {
     startButton.disabled = false;
     stopButton.disabled = true;
 
-    usersSpan.innerHTML = '';
+    usersDiv.innerHTML = '';
 
     localVideo.srcObject = null;
-    remoteVideo.srcObject = null;
     signalingChannel.stop();
+
+    Object.keys(pcs).map(function(key, ind){
+        if (pcs[key].signalingState!="closed") {
+            pcs[key].getLocalStreams().forEach(function(s) {
+                s.getTracks().forEach(function(t) {t.stop()});
+            });
+            pcs[key].close();
+        }
+    })
     
-    if (pc.signalingState!="closed") {
-        pc.getLocalStreams().forEach(function(s) {
-            s.getTracks().forEach(function(t) {t.stop()});
-        });
-        pc.close();
-    }
     localStream = null;
 }
 
@@ -176,9 +158,40 @@ function SignalingChannel() {
     }
 }
 
+function newPC(callee) {
+
+    var pc = new RTCPeerConnection({iceServers:iceServers()});
+    // send any ice candidates to the other peer
+    pc.onicecandidate = function (evt) {
+        console.log('Event "onicecandidate"');
+        signalingChannel.send(evt.candidate);
+    };
+
+    pc.onnegotiationneeded = function () {
+        console.log('Event "onnegotiationneeded"')
+        pc.createOffer().then(function (offer) {
+            pc.setLocalDescription(offer);
+            signalingChannel.send(offer);
+        })
+        .catch(logError);
+    };
+
+    pc.onaddstream = function(e) {
+        var remoteVideo = document.getElementById(callee);
+        remoteVideo.srcObject = e.stream;
+        console.log('received remote stream');
+    }
+
+    pcs[callee] = pc;
+
+    return pc;
+}
+
 function callTo(user) {
     callee = user
 
+
+    var pc = pcs[callee] || newPC(callee);
     // get a local stream, show it in a self-view and add it to be sent
     navigator.mediaDevices.getUserMedia({video:true, audio:true})
     .then (function (stream) {
@@ -191,10 +204,12 @@ function callTo(user) {
 function parseMsg(msg) {
     var data = msg.content
     if (!data) return
-	if (data.type == "offer") {
-		console.log('offer received');
 
-        callee = msg.from;
+    callee = msg.from;
+    var pc = pcs[callee] || newPC(callee);
+
+    if (data.type == "offer") {
+        console.log('offer received');
 
         pc.setRemoteDescription(new RTCSessionDescription(data))
         .then(function() {
@@ -220,20 +235,51 @@ function parseMsg(msg) {
 
     } else if (data.type == "users") {
         console.log("get users: " + data.users)
-        usersSpan.innerHTML='';
+        // usersDiv.innerHTML='';
         data.users.forEach(function(u) {
             if (u==userNameInput.value) return;
-            var a = document.createElement('A');
-            a.innerHTML = u;
-            a.href = '#';
-            a.onclick = function() {
-                callTo(u);
-                return false;
-            }
-            usersSpan.appendChild(a)
-            usersSpan.appendChild(document.createTextNode(' '))
-        })
 
+            var videotag = document.getElementById(u);
+            console.log("videotag", videotag);
+            if (videotag === null) {
+                var container = document.createElement('div');
+                container.className = "container";
+                var video = document.createElement('video');
+                video.id = u;
+                video.autoplay = true;
+                container.appendChild(video);
+                var link = document.createElement('a');
+                link.href = '#';
+                link.className = 'video-label';
+                link.innerHTML = '<b> call to '+u+'</b>';
+                link.onclick = function() {
+                    callTo(u);
+                    return false;
+                }
+                container.appendChild(link);
+
+                usersDiv.appendChild(container);
+            }
+        });
+
+        Object.keys(pcs).map(function(key, ind){
+            if (pcs[key].signalingState =="closed") {
+                delete pcs[key];
+            } else if (pcs[key].signalingState !="closed" && !data.users.includes(key)) {
+                pcs[key].getLocalStreams().forEach(function(s) {
+                    s.getTracks().forEach(function(t) {t.stop()});
+                });
+                pcs[key].close();
+                delete pcs[key];
+            }
+        });
+
+        Array.from(document.getElementsByClassName("container")).forEach(function(cont){
+            if (!data.users.includes(cont.getElementsByTagName("video")[0].id)){
+                cont.parentNode.removeChild(cont);
+            }
+        });
+        
     } else {
     	console.log('candidate received');
         if (msg.content) {
