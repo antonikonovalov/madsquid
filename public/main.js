@@ -4,11 +4,14 @@ var signalingMethod = "websocket"; // websocket | post
 
 var startButton = document.getElementById('startButton');
 var stopButton = document.getElementById('stopButton');
-startButton.disabled = true;
+var testButton = document.getElementById('testButton');
+startButton.disabled = false;
 stopButton.disabled = true
+testButton.disabled = true
 
 startButton.onclick = start;
 stopButton.onclick = stop;
+testButton.onclick = test;
 
 var localVideo = document.getElementById('localVideo');
 
@@ -73,6 +76,7 @@ function start() {
     userNameInput.disabled = true;
     startButton.disabled = true;
     stopButton.disabled = false;
+    testButton.disabled = false;
 
     localVideo.id = userNameInput.value
 
@@ -83,6 +87,7 @@ function stop() {
     userNameInput.disabled = false;
     startButton.disabled = false;
     stopButton.disabled = true;
+    testButton.disabled = true;
 
     usersDiv.innerHTML = '';
 
@@ -99,6 +104,17 @@ function stop() {
     })
     
     localStream = null;
+}
+
+function test() {
+    testButton.disabled = true;
+
+    var elems = Array.from(document.getElementsByClassName("video-label"));
+    elems.forEach(function(elem, index){
+        setTimeout(function(){elem.click();}, 60*1000*index+Math.log(index+1));
+    });
+
+    setTimeout(function(){stopButton.click(); setTimeout(function(){alert("FINISHED");}, 1);}, 60*1000*elems.length+Math.log(elems.length));
 }
 
 function SignalingChannel() {
