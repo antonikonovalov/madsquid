@@ -2,6 +2,9 @@
 
 var signalingMethod = "websocket"; // websocket | post
 
+var audioCodec = "opus"
+var videoCodec = "vp8"
+
 var startButton = document.getElementById('startButton');
 var stopButton = document.getElementById('stopButton');
 var testButton = document.getElementById('testButton');
@@ -186,6 +189,9 @@ function newPC(callee) {
     pc.onnegotiationneeded = function () {
         console.log('Event "onnegotiationneeded"')
         pc.createOffer().then(function (offer) {
+            if (typeof replaceCodecs === 'function') {
+                offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
+            }
             pc.setLocalDescription(offer);
             signalingChannel.send(offer);
         })
@@ -239,6 +245,9 @@ function parseMsg(msg) {
             return pc.createAnswer()
         })
         .then(function (answer) {
+            if (typeof replaceCodecs === 'function') {
+                answer.sdp = replaceCodecs(answer.sdp, audioCodec, videoCodec)
+            }
             pc.setLocalDescription(answer);
             signalingChannel.send(answer);
         })
