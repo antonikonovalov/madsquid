@@ -81,3 +81,32 @@ func (s *Service) UsersListSend() {
 		}
 	}
 }
+
+func (s *Service) KurentoUsersListSend() {
+	users := []string{}
+	for u, _ := range s.kurentoClients {
+		users = append(users, u)
+	}
+
+	msg := &UsersListMessage{
+		Content: struct {
+			Type  string   `json:"type"`
+			Users []string `json:"users"`
+		}{
+			Type:  "users",
+			Users: users,
+		},
+	}
+
+	m, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("MARSHAL ERROR: %s", err)
+		return
+	}
+
+	for _, ws := range s.kurentoClients {
+		if err = ws.Send(m); err != nil {
+			log.Printf("WEBSOCKET SENT ERROR: %s", err)
+		}
+	}
+}

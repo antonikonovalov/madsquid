@@ -1,0 +1,17 @@
+video {
+    background: #222;
+    width: 400px;
+    height: 300px;
+}
+
+.video-label{
+    color: fuchsia;
+    position: absolute;
+    left: 10;
+}
+
+.container{
+	float: left;
+	position: relative;
+	display: block;
+}

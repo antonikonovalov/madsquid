@@ -1,0 +1,26 @@
+<html>
+<head>
+	<title>WebRTC test page</title>
+	<link rel="stylesheet" href="/main.css" />
+	<script src="//webrtc.github.io/adapter/adapter-latest.js"></script>
+</head>
+<body>
+<h1>WebRTC test page</h1>
+Your name: <input type="text" id="userName" />
+<button id="startButton">Start</button>
+<button id="stopButton">Stop</button>
+<button id="testButton">Test</button>
+<div>
+	Local video:<br>
+    <video id="localVideo" autoplay muted></video><br>
+    <input type="checkbox" id="videoCheckbox" value="1" checked> video
+    <input type="checkbox" id="audioCheckbox" value="1" checked> audio
+</div>
+<h3>Calling</h3>
+<div>Remote sessions:</div>
+<div id="users"></div>
+<script src="/codecs.js"></script>
+<script src="/main.js"></script>
+</body>
+</html>
+

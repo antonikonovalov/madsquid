@@ -6,6 +6,12 @@
 			"repository": "https://github.com/gorilla/websocket",
 			"revision": "2d1e4548da234d9cb742cc3628556fef86aafbac",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/pborman/uuid",
+			"repository": "https://github.com/pborman/uuid",
+			"revision": "1b00554d822231195d1babd97ff4a781231955c9",
+			"branch": "master"
 		}
 	]
 }

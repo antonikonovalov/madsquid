@@ -5,6 +5,7 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"kurento"
 	"log"
 	"net/http"
 	"sync"
