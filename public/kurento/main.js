@@ -50,7 +50,7 @@ var signalingChannel = new SignalingChannel();
 function trackOptions() {
     return {
         video: videoCheckbox.checked,
-        audio: audioCheckbox.checked,
+        audio: audioCheckbox.checked
     };
 }
 
@@ -77,8 +77,8 @@ function changeTracks(flag, tracks) {
 function gotStream(stream) {
   console.log('Received local stream');
   localStream = stream;
-  changeVideoTracks();
-  changeAudioTracks();
+  //changeVideoTracks();
+  //changeAudioTracks();§
   localVideo.srcObject = localStream;
 }
 
@@ -127,7 +127,7 @@ function stop() {
             });
             pcs[key].close();
         }
-    })
+    });
 
     firstPage.style.display = "block";
     roomPage.style.display = "none";
@@ -205,9 +205,27 @@ function SignalingChannel() {
     }
 }
 
+var recvOfferCfg = {offerToReceiveVideo: 1, offerToReceiveAudio: 1, voiceActivityDetection: true, iceRestart: false};
+    // {
+    //     offerToReceiveAudio: {
+    //         exact: 1
+    //     },
+    //     offerToReceiveVideo:
+    //         {
+    //             exact: 1
+    //         },
+    //     advanced: [
+    //         {
+    //             enableDtlsSrtp: {
+    //                 exact: true
+    //             }
+    //         }
+    //     ]
+    // };
+
 function newPC(callee) {
 
-    var pc = new RTCPeerConnection({iceServers:iceServers()});
+    var pc = new RTCPeerConnection(null);
     // send any ice candidates to the other peer
     pc.onicecandidate = function (evt) {
         console.log('Event "onicecandidate"');
@@ -222,18 +240,31 @@ function newPC(callee) {
 
     pc.onnegotiationneeded = function () {
         console.log('Event "onnegotiationneeded"')
-        pc.createOffer().then(function (offer) {
-            // if (typeof replaceCodecs === 'function') {
-            //     offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
-            // }
-            pc.setLocalDescription(offer);
-            signalingChannel.send({
-                cmd:"receiveVideoFrom",
-                sender: callee,
-                sdpOffer: offer.sdp
-            });
-        })
-        .catch(logError);
+        if (localStream != null) {
+            pc.createOffer(recvOfferCfg).then(function (offer) {
+                // if (typeof replaceCodecs === 'function') {
+                //     offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
+                // }
+                pc.setLocalDescription(offer);
+                signalingChannel.send({
+                    cmd: "receiveVideoFrom",
+                    sender: callee,
+                    sdpOffer: offer.sdp
+                });
+            }).catch(logError);
+        } else {
+            pc.createOffer({offerToReceiveAudio: 0, offerToReceiveVideo: 0}).then(function (offer) {
+                // if (typeof replaceCodecs === 'function') {
+                //     offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
+                // }
+                pc.setLocalDescription(offer);
+                signalingChannel.send({
+                    cmd: "receiveVideoFrom",
+                    sender: callee,
+                    sdpOffer: offer.sdp
+                });
+            }).catch(logError);
+        }
     };
 
     pc.onaddstream = function(e) {
@@ -250,17 +281,25 @@ function newPC(callee) {
 }
 
 function callTo(user) {
-    callee = user
-
+    callee = user;
 
     var pc = pcs[callee] || newPC(callee);
-    // get a local stream, show it in a self-view and add it to be sent
-    navigator.mediaDevices.getUserMedia({video:true, audio:true})
-    .then (function (stream) {
-        gotStream(stream);
-        pc.addStream(stream);
-    })
-    .catch(logError);
+    if (localStream != null) {
+        pc.createOffer(recvOfferCfg).then(function (offer) {
+            pc.setLocalDescription(offer);
+            signalingChannel.send({
+                cmd: "receiveVideoFrom",
+                sender: callee,
+                sdpOffer: offer.sdp
+            });
+        }).catch(logError);
+    } else {
+        // get a local stream, show it in a self-view and add it to be sent
+        navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function (stream) {
+                gotStream(stream);
+                pc.addStream(stream);
+        }).catch(logError);
+    }
 }
 
 function parseMsg(msg) {
@@ -268,23 +307,25 @@ function parseMsg(msg) {
     if (!data) return;
 
 
-    if (data.error != null) {
+    if (data.error !== undefined) {
         console.error(data);
         return stop();
     }
 
-    var callee = data.name;
-    var pc = pcs[callee] || newPC(callee);
+    if (data.cmd === undefined) return;
+
 
     switch(data.cmd) {
         case 'receiveVideoAnswer':
             console.log('answer received');
+            var pc = pcs[data.name];
             pc.setRemoteDescription(new RTCSessionDescription({"type":"answer","sdp":data.sdpAnswer}))
                 .catch(logError);
             break;
 
         case 'iceCandidate':
             console.log('iceCandidate');
+            var pc = pcs[data.name];
             pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(logError);
             break;
 
@@ -292,6 +333,7 @@ function parseMsg(msg) {
             if (data.name==userNameInput.value) return;
 
             var videotag = document.getElementById(data.name);
+
             console.log("videotag", videotag);
             if (videotag === null) {
                 var container = document.createElement('div');
@@ -313,9 +355,12 @@ function parseMsg(msg) {
                 usersDiv.appendChild(container);
             }
             break;
+
         case 'existingParticipants':
             console.log('existingParticipants');
             console.log("get users: " + data.data);
+            if (data.data.length === 0 ) return;
+            return;
             data.data.forEach(function(u) {
                 if (u==userNameInput.value) return;
 
@@ -363,91 +408,8 @@ function parseMsg(msg) {
             break;
     }
 
-    return
+    return;
 
-
-    /*
-
-    if (data.type == "offer") {
-        console.log('offer received');
-
-        pc.setRemoteDescription(new RTCSessionDescription(data))
-        .then(function() {
-            if (pc.getLocalStreams().length<1) {
-                navigator.mediaDevices.getUserMedia({video:true, audio:true}).then(function (stream) {
-                    gotStream(stream);
-                    pc.addStream(stream)
-                })
-                .catch(logError);
-            }
-            return pc.createAnswer()
-        })
-        .then(function (answer) {
-            if (typeof replaceCodecs === 'function') {
-                answer.sdp = replaceCodecs(answer.sdp, audioCodec, videoCodec)
-            }
-            pc.setLocalDescription(answer);
-            signalingChannel.send(answer);
-        })
-        .catch(logError);
-
-	} else if (data.type == "answer") {
-
-
-    } else if (data.type == "users") {
-        console.log("get users: " + data.users)
-        // usersDiv.innerHTML='';
-        data.users.forEach(function(u) {
-            if (u==userNameInput.value) return;
-
-            var videotag = document.getElementById(u);
-            console.log("videotag", videotag);
-            if (videotag === null) {
-                var container = document.createElement('div');
-                container.className = "container";
-                var video = document.createElement('video');
-                video.id = u;
-                video.autoplay = true;
-                container.appendChild(video);
-                var link = document.createElement('a');
-                link.href = '#';
-                link.className = 'video-label';
-                link.innerHTML = '<b> call to '+u+'</b>';
-                link.onclick = function() {
-                    callTo(u);
-                    return false;
-                }
-                container.appendChild(link);
-
-                usersDiv.appendChild(container);
-            }
-        });
-
-        Object.keys(pcs).map(function(key, ind){
-            if (pcs[key].signalingState =="closed") {
-                delete pcs[key];
-            } else if (pcs[key].signalingState !="closed" && !data.users.includes(key)) {
-                pcs[key].getLocalStreams().forEach(function(s) {
-                    s.getTracks().forEach(function(t) {t.stop()});
-                });
-                pcs[key].close();
-                delete pcs[key];
-            }
-        });
-
-        Array.from(document.getElementsByClassName("container")).forEach(function(cont){
-            if (!data.users.includes(cont.getElementsByTagName("video")[0].id)){
-                cont.parentNode.removeChild(cont);
-            }
-        });
-        
-    } else {
-    	console.log('candidate received');
-        if (msg.content) {
-    	   pc.addIceCandidate(new RTCIceCandidate(data)).catch(logError);
-        }
-    }
-    */
 }
 
 function logError(error) {

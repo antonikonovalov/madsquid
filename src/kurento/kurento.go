@@ -234,11 +234,13 @@ func (k *kurentoClient) pinger(ctx context.Context) {
 	for {
 		select {
 		case <-tiker.C:
-			out, err := k.send(newRequest(`ping`, val))
+			out, done, err := k.send(newRequest(`ping`, val))
 			if err != nil {
 				log.Printf(`ping-pong err: %s`, err)
 			}
 			<-out
+			done()
+
 		case <-ctx.Done():
 			return
 		}
@@ -255,15 +257,14 @@ func (k *kurentoClient) loop() error {
 		}
 
 		resp := &response{}
-		k.ws.SetReadLimit(maxMessageSize)
-		k.ws.SetReadDeadline(time.Now().Add(pongWait))
+		//k.ws.SetReadLimit(maxMessageSize)
+		//k.ws.SetReadDeadline(time.Now().Add(pongWait))
 
 		log.Print("kurentoClient: started read")
 
 		err := k.ws.ReadJSON(resp)
 		if err != nil {
-			log.Print("kurentoClient: read error %s", err)
-			return err
+			log.Printf("kurentoClient: read error: %s", err)
 		}
 
 		log.Printf("kurentoClient: [%s] ended read %s, %s", resp.QueueName(), resp, err)
@@ -301,15 +302,15 @@ func newRequest(method string, p interface{}) *request {
 	}
 }
 
-func (k *kurentoClient) send(req *request) (chan *response, error) {
+func (k *kurentoClient) send(req *request) (chan *response, func(), error) {
 	queueName := req.ID
 
-	k.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	//	k.ws.SetWriteDeadline(time.Now().Add(writeWait))
 	log.Printf("kurentoClient: [%s] started send %v", req.ID, req)
 	err := k.ws.WriteJSON(req)
 	if err != nil {
 		log.Printf("kurentoClient: [%s] started send err %s", req.ID, err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	out := make(chan *response, 0)
@@ -318,7 +319,12 @@ func (k *kurentoClient) send(req *request) (chan *response, error) {
 	k.queueLock.Unlock()
 
 	log.Printf("kurentoClient: [%s] ended send %s", req.ID, err)
-	return out, nil
+	return out, func() {
+		close(out)
+		k.queueLock.Lock()
+		delete(k.queue, queueName)
+		k.queueLock.Unlock()
+	}, nil
 }
 
 func (k *kurentoClient) Create(ctx context.Context, obj *MediaObject) error {
@@ -343,10 +349,11 @@ func (k *kurentoClient) Create(ctx context.Context, obj *MediaObject) error {
 		params.SessionID = &k.sessionID
 	}
 
-	out, err := k.send(newRequest(`create`, params))
+	out, done, err := k.send(newRequest(`create`, params))
 	if err != nil {
 		return err
 	}
+	defer done()
 	select {
 	case <-k.cctx.Done():
 		return k.cctx.Err()
@@ -383,10 +390,11 @@ func (k *kurentoClient) Invoke(ctx context.Context, obj *MediaObject, operation 
 		SessionID:       k.sessionID,
 	}
 
-	out, err := k.send(newRequest(`invoke`, params))
+	out, done, err := k.send(newRequest(`invoke`, params))
 	if err != nil {
 		return err
 	}
+	defer done()
 	select {
 	case <-k.cctx.Done():
 		return k.cctx.Err()
@@ -423,10 +431,11 @@ func (k *kurentoClient) Subscribe(ctx context.Context, obj *MediaObject, topic S
 		SessionID: k.sessionID,
 	}
 
-	out, err := k.send(newRequest(`subscribe`, params))
+	out, done, err := k.send(newRequest(`subscribe`, params))
 	if err != nil {
 		return nil, err
 	}
+	defer done()
 
 	result := &struct {
 		Value     string `json:"value"`
@@ -492,10 +501,11 @@ func (k *kurentoClient) unsubscribe(ctx context.Context, obj *MediaObject, subsc
 		SessionID:    k.sessionID,
 	}
 
-	out, err := k.send(newRequest(`unsubscribe`, params))
+	out, done, err := k.send(newRequest(`unsubscribe`, params))
 	if err != nil {
 		return err
 	}
+	defer done()
 
 	select {
 	case <-k.cctx.Done():

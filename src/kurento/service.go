@@ -8,9 +8,32 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
-	"time"
+)
+
+var (
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1 * 1024,
+		WriteBufferSize: 1 * 1024,
+		CheckOrigin: func(*http.Request) bool {
+			return true
+		},
+	}
+
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 40 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	// (If you want send many tracks in one stream SDP may be very big)
+	maxMessageSize int64 = 8 * 1024
 )
 
 func NewService(ctx context.Context) (http.Handler, error) {
@@ -160,7 +183,7 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		for {
 			select {
 			case <-ticker.C:
-				if err := wsConn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				if err := wsConn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(writeWait)); err != nil {
 					log.Printf("WEBSOCKET PING ERROR: %s", err)
 					return
 				}
@@ -234,23 +257,7 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			log.Printf(`context of web socket is done: %s`, err)
 			return
 		}
-
 	}
-
-	//userMediaObject := &MediaObject{
-	//	Parent: s.root,
-	//	Type:   WebRtcEndpoint,
-	//}
-	//err = s.cli.Create(r.Context(), userMediaObject)
-	//if err != nil {
-	//	http.Error(rw, err.Error(), http.StatusInternalServerError)
-	//}
-	//
-	//iceCandidateFoundChannel, err := s.cli.Subscribe(r.Context(), userMediaObject, IceCandidateFound)
-	//if err != nil {
-	//	http.Error(rw, err.Error(), http.StatusInternalServerError)
-	//}
-	//
 }
 
 type ExistingParticipantsForm struct {
@@ -289,69 +296,191 @@ type IceCandidateAnswer struct {
 }
 
 func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *WsRequest) error {
-	var err error
+	if currentUser == nil {
+		return fmt.Errorf("currentUser for req %s is nil ", req.Cmd)
+	}
+
+	var (
+		err               error
+		sinkMediaObject   *MediaObject
+		currentRoom       = currentUser.room
+		needNotification  bool
+		AnswerForUserName = currentUser.name
+		connectEndpoints  = func() error { return nil }
+	)
+
 	if currentUser.name == req.Sender {
+		needNotification = true
 		// create webrtc endpoint
 		err = s.cli.Create(ctx, currentUser.In)
 		if err != nil {
 			return err
 		}
+		sinkMediaObject = currentUser.In
+	} else {
 
-		eventIceCandidateFound, err := s.cli.Subscribe(ctx, currentUser.In, IceCandidateFound)
+		currentRoom.lock.RLock()
+		sourceUser, ok := currentRoom.Users[req.Sender]
+		currentRoom.lock.RUnlock()
+		if !ok {
+			return fmt.Errorf("can't find user %s in room ", req.Sender)
+		}
+
+		sinkMediaObject = &MediaObject{
+			Parent: currentRoom.MediaPipeline,
+			Type:   WebRtcEndpoint,
+		}
+
+		err = s.cli.Create(ctx, sinkMediaObject)
 		if err != nil {
 			return err
 		}
+		sink := &struct {
+			Sink string `json:"sink"`
+		}{
+			Sink: sinkMediaObject.ID,
+		}
 
-		// add listener
-		go func() {
-			for event := range eventIceCandidateFound {
-				answer := &IceCandidateAnswer{}
-				_ = json.Unmarshal(event, answer)
-				answer.Cmd = IceCandidateWsCmd
-				answer.Name = currentUser.name
-				currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-				_ = currentUser.wsConn.WriteJSON(answer)
-			}
-		}()
-
-		raw, err := json.Marshal(map[string]string{"offer": req.SdpOffer})
+		raw, err := json.Marshal(sink)
 		if err != nil {
 			return err
 		}
-
 		payload := &json.RawMessage{}
+		payload2 := &json.RawMessage{}
 		_ = payload.UnmarshalJSON(raw)
-		// process Offer
-		err = s.cli.Invoke(ctx, currentUser.In, ProcessOfferInvokeOperation, payload)
+		_ = payload2.UnmarshalJSON(raw)
+		err = s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload)
 		if err != nil {
 			return err
 		}
-		// return answer to client
-		currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-		err = currentUser.wsConn.WriteJSON(&ReceiveVideoAnswerForm{
-			Cmd:       ReceiveVideoAnswerWsCmd,
-			Name:      currentUser.name,
-			SdpAnswer: payload,
+
+		connectEndpoints = func() error {
+			return s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload2)
+		}
+
+		currentUser.lock.Lock()
+		currentUser.Out[sourceUser.name] = &MediaConnector{
+			Point:  sinkMediaObject,
+			Source: sourceUser.In,
+		}
+		currentUser.lock.Unlock()
+		AnswerForUserName = sourceUser.name
+	}
+
+	eventIceCandidateFound, err := s.cli.Subscribe(ctx, sinkMediaObject, IceCandidateFound)
+	if err != nil {
+		return err
+	}
+
+	// add listener - closed, when closed WS
+	go func() {
+		for event := range eventIceCandidateFound {
+			answer := &IceCandidateAnswer{}
+			_ = json.Unmarshal(event, answer)
+			answer.Cmd = IceCandidateWsCmd
+			answer.Name = AnswerForUserName
+			currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = currentUser.wsConn.WriteJSON(answer)
+		}
+	}()
+
+	raw, err := json.Marshal(map[string]string{"offer": req.SdpOffer})
+	if err != nil {
+		return err
+	}
+
+	payload := &json.RawMessage{}
+	_ = payload.UnmarshalJSON(raw)
+	// process Offer
+	err = s.cli.Invoke(ctx, sinkMediaObject, ProcessOfferInvokeOperation, payload)
+	if err != nil {
+		return err
+	}
+
+	// return answer to client
+	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+	err = currentUser.wsConn.WriteJSON(&ReceiveVideoAnswerForm{
+		Cmd:       ReceiveVideoAnswerWsCmd,
+		Name:      AnswerForUserName,
+		SdpAnswer: payload,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = connectEndpoints()
+	if err != nil {
+		return err
+	}
+
+	// fire event!
+	err = s.cli.Invoke(ctx, sinkMediaObject, GatherCandidatesInvokeOperation, nil)
+	if err != nil {
+		return err
+	}
+
+	if !needNotification {
+		return nil
+	}
+
+	// NOTIFICATION
+	// только после того как пользователь создал webrct создедиение - мы говорим что он есть
+	users := []string{}
+	for _, user := range currentRoom.Users {
+		if user.name == currentUser.name {
+			continue
+		}
+
+		user.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+		err = user.wsConn.WriteJSON(&NewParticipantArrivedForm{
+			Cmd:  NewParticipantArrivedWsCmd,
+			Name: currentUser.name,
 		})
 		if err != nil {
-			return err
+			continue
 		}
-
-		// fire event!
-		err = s.cli.Invoke(ctx, currentUser.In, GatherCandidatesInvokeOperation, nil)
-		if err != nil {
-			return err
+		if len(user.In.ID) != 0 {
+			users = append(users, user.name)
 		}
-	} // else
+	}
 
-	return nil
+	// и отправляем ему данные о других практикантах
+	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+	return currentUser.wsConn.WriteJSON(&ExistingParticipantsForm{
+		Cmd:  ExistingParticipantsWsCmd,
+		Data: users,
+	})
 }
 
+/*
+2017/04/21 17:59:18 start processed receiveVideoFrom
+2017/04/21 17:59:18 started call receiveVideoFrom
+2017/04/21 17:59:18 kurentoClient: [613b3aa4-6832-43be-85d5-53a0fd7bd04a] started send &{2.0 613b3aa4-6832-43be-85d5-53a0fd7bd04a create 0xc420384120}
+2017/04/21 17:59:18 kurentoClient: [613b3aa4-6832-43be-85d5-53a0fd7bd04a] ended send %!s(<nil>)
+2017/04/21 17:59:18 kurentoClient: [613b3aa4-6832-43be-85d5-53a0fd7bd04a] ended read &{2.0 613b3aa4-6832-43be-85d5-53a0fd7bd04a %!s(*json.RawMessage=&[123 34 115 101 115 115 105 111 110 73 100 34 58 34 57 51 98 97 97 97 53 57 45 48 51 53 50 45 52 54 48 50 45 56 52 50 102 45 55 51 55 101 48 97 55 52 101 49 97 99 34 44 34 118 97 108 117 101 34 58 34 102 101 56 54 98 48 101 51 45 53 52 53 56 45 52 97 50 101 45 57 49 49 51 45 100 102 53 53 52 54 56 101 100 57 99 100 95 107 117 114 101 110 116 111 46 77 101 100 105 97 80 105 112 101 108 105 110 101 47 57 54 97 52 100 49 99 53 45 98 99 97 54 45 52 52 53 100 45 56 100 97 99 45 99 54 52 57 55 49 53 50 53 56 51 48 95 107 117 114 101 110 116 111 46 87 101 98 82 116 99 69 110 100 112 111 105 110 116 34 125]) <nil>  %!s(*struct { Value struct { Data *json.RawMessage "json:\"data\""; Object string "json:\"object\""; Type kurento.SubscribeTopic "json:\"type\"" } "json:\"value\"" }=<nil>)}, %!s(<nil>)
+2017/04/21 17:59:18 kurentoClient: [613b3aa4-6832-43be-85d5-53a0fd7bd04a] ended read PUT_ANSWER
+2017/04/21 17:59:18 kurentoClient: started read
+2017/04/21 17:59:18 kurentoClient: [e99e6a50-9003-4a8c-9ced-81a3783204d0] started send &{2.0 e99e6a50-9003-4a8c-9ced-81a3783204d0 invoke 0xc4200fa9c0}
+2017/04/21 17:59:18 kurentoClient: [e99e6a50-9003-4a8c-9ced-81a3783204d0] ended send %!s(<nil>)
+2017/04/21 17:59:18 kurentoClient: [e99e6a50-9003-4a8c-9ced-81a3783204d0] ended read &{2.0 e99e6a50-9003-4a8c-9ced-81a3783204d0 %!s(*json.RawMessage=<nil>) [40101] Object '' not found : &{"type":"MEDIA_OBJECT_NOT_FOUND"}  %!s(*struct { Value struct { Data *json.RawMessage "json:\"data\""; Object string "json:\"object\""; Type kurento.SubscribeTopic "json:\"type\"" } "json:\"value\"" }=<nil>)}, %!s(<nil>)
+2017/04/21 17:59:18 kurentoClient: [e99e6a50-9003-4a8c-9ced-81a3783204d0] ended read PUT_ANSWER
+2017/04/21 17:59:18 kurentoClient: started read
+2017/04/21 17:59:18 ended call receiveVideoFrom
+2017/04/21 17:59:18 cmd:receiveVideoFrom: err: [40101] Object '' not found : &{"type":"MEDIA_OBJECT_NOT_FOUND"}
+
+*/
+
 func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsRequest) error {
+	var (
+		err  error
+		room *Room
+		ok   bool
+	)
+
 	s.lock.RLock()
-	room, ok := s.rooms[req.Room]
+	room, ok = s.rooms[req.Room]
 	s.lock.RUnlock()
-	var err error
+
 	if !ok {
 		room = NewRoom()
 		err = s.cli.Create(ctx, room.MediaPipeline)
@@ -370,13 +499,8 @@ func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsReques
 		}
 	}
 
-	// create
-	//// create WebRtcEndpoint for user input stream
-	//err := s.cli.Create(ctx, userMediaObj)
-	//if err != nil {
-	//	return err
-	//}
-
+	// JOIN, BUT HIDE
+	currentUser.room = room
 	currentUser.name = req.User
 	currentUser.In = &MediaObject{
 		Parent: room.MediaPipeline,
@@ -384,27 +508,7 @@ func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsReques
 	}
 
 	room.AddUser(currentUser)
-	users := []string{}
-
-	for name, user := range room.Users {
-		if name == req.User {
-			continue
-		}
-		users = append(users, name)
-		user.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-		err = user.wsConn.WriteJSON(&NewParticipantArrivedForm{
-			Cmd:  NewParticipantArrivedWsCmd,
-			Name: req.User,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-	return currentUser.wsConn.WriteJSON(&ExistingParticipantsForm{
-		Cmd:  ExistingParticipantsWsCmd,
-		Data: users,
-	})
+	return nil
 }
 
 /*
@@ -451,18 +555,21 @@ func NewUser(name string, c *websocket.Conn, in *MediaObject) *User {
 	return &User{
 		name:   name,
 		wsConn: c,
+		lock:   &sync.RWMutex{},
 		In:     in,
 		Out:    make(map[string]*MediaConnector, 0),
 	}
 }
 
 type User struct {
-	name string `json:"-"`
+	name string        `json:"-"`
+	lock *sync.RWMutex `json:"-"`
 	// websocket
 	wsConn *websocket.Conn `json:"-"`
 	// in stream
-	In  *MediaObject               `json:"in"`
-	Out map[string]*MediaConnector `json:"out"`
+	In   *MediaObject               `json:"in"`
+	Out  map[string]*MediaConnector `json:"out"`
+	room *Room                      `json:"-"`
 }
 
 func NewRoom() *Room {
