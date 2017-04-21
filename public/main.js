@@ -140,14 +140,14 @@ function SignalingChannel() {
 
     this.send = function(obj) {
         if (signalingMethod=='websocket')
-            this.sendWebSocket(obj)
+            this.sendWebSocket(obj);
         else
-            this.sendPost(obj)
-    }
+            this.sendPost(obj);
+    };
 
     this.sendWebSocket = function(obj) {
         this.socket.send(JSON.stringify({ for: callee, content: obj }));
-    }
+    };
 
     this.sendPost = function(obj) {
         var client = new XMLHttpRequest();
@@ -210,7 +210,7 @@ function newPC(callee) {
 }
 
 function callTo(user) {
-    callee = user
+    callee = user;
 
 
     var pc = pcs[callee] || newPC(callee);

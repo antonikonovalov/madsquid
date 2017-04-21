@@ -1,3 +1,16 @@
+#first-page {
+    display: block;
+}
+
+#room-page {
+    display: none;
+}
+
+likeform {
+    padding: 50px;
+    margin: 50px;
+}
+
 video {
     background: #222;
     width: 400px;

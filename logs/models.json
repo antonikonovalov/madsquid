@@ -1,0 +1,36 @@
+{
+  "rooms": {
+    "Room Name": {
+      // link to media pipe line
+      "mediaPipeline": "mediaPipeline-1",
+      // users of room
+      "users": {
+        "User Name First": {
+          "wsConnection": "ws//sdfsdf",
+          // stream from user browser
+          "webrtcEndpointIn": "webrtcEndpointIn-1",
+          // streams to user browser
+          "webrtcEndpointOut": {
+            // where webrtcEndpointIn-3 have connected to webrtcEndpointIn-2
+            "User Name Second": {
+              "point":"webrtcEndpointIn-3",
+              "source":"webrtcEndpointIn-2"
+            }
+          }
+        },
+        "User Name Second": {
+          "wsConnection": "ws//sdfsdf",
+          // stream from user browser
+          "webrtcEndpointIn": "webrtcEndpointIn-2",
+          // streams to user browser
+          "webrtcEndpointOut": {
+            "User Name First": {
+              "point":"webrtcEndpointIn-4",
+              "source":"webrtcEndpointIn-1"
+            }
+          }
+        }
+      }
+    }
+  }
+}

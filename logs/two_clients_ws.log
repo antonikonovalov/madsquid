@@ -1,0 +1,163 @@
+
+// first
+{"id":"joinRoom","name":"test1","room":"testing"}	49
+08:32:28.036
+{"id":"existingParticipants","data":[]}	39
+08:32:28.045
+{"id":"receiveVideoFrom","sender":"test1","sdpOffer":"v=0\r\no=- 6693409098247685370 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE audio video\r\na=msid-semantic: WMS PmCqQYM2SCc5oQGPke3t39AwKN3fN1VOpYuk\r\nm=audio 62818 UDP/TLS/RTP/SAVPF 111 103 104 9 0 8 106 105 13 110 112 113 126\r\nc=IN IP4 10.1.10.37\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=candidate:3883225187 1 udp 2122260223 10.1.10.37 62818 typ host generation 0 network-id 1\r\na=ice-ufrag:3aIx\r\na=ice-pwd:PNsU4hFHGLuigY14CeUL8y3h\r\na=fingerprint:sha-256 20:FB:9B:FC:52:08:F2:01:E2:BD:2B:22:F1:0C:FE:F3:A6:2F:E8:A5:A7:3D:23:40:DC:40:22:D3:B4:BC:12:73\r\na=setup:actpass\r\na=mid:audio\r\na=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\na=sendonly\r\na=rtcp-mux\r\na=rtpmap:111 opus/48000/2\r\na=rtcp-fb:111 transport-cc\r\na=fmtp:111 minptime=10;useinbandfec=1\r\na=rtpmap:103 ISAC/16000\r\na=rtpmap:104 ISAC/32000\r\na=rtpmap:9 G722/8000\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:106 CN/32000\r\na=rtpmap:105 CN/16000\r\na=rtpmap:13 CN/8000\r\na=rtpmap:110 telephone-event/48000\r\na=rtpmap:112 telephone-event/32000\r\na=rtpmap:113 telephone-event/16000\r\na=rtpmap:126 telephone-event/8000\r\na=ssrc:633304457 cname:vzLk4CiaFVX4EPN9\r\na=ssrc:633304457 msid:PmCqQYM2SCc5oQGPke3t39AwKN3fN1VOpYuk c00a8b87-4f91-4a81-a509-3564199de183\r\na=ssrc:633304457 mslabel:PmCqQYM2SCc5oQGPke3t39AwKN3fN1VOpYuk\r\na=ssrc:633304457 label:c00a8b87-4f91-4a81-a509-3564199de183\r\nm=video 50046 UDP/TLS/RTP/SAVPF 96 98 100 102 127 97 99 101 125\r\nc=IN IP4 10.1.10.37\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=candidate:3883225187 1 udp 2122260223 10.1.10.37 50046 typ host generation 0 network-id 1\r\na=ice-ufrag:3aIx\r\na=ice-pwd:PNsU4hFHGLuigY14CeUL8y3h\r\na=fingerprint:sha-256 20:FB:9B:FC:52:08:F2:01:E2:BD:2B:22:F1:0C:FE:F3:A6:2F:E8:A5:A7:3D:23:40:DC:40:22:D3:B4:BC:12:73\r\na=setup:actpass\r\na=mid:video\r\na=extmap:2 urn:ietf:params:rtp-hdrext:toffset\r\na=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=extmap:4 urn:3gpp:video-orientation\r\na=extmap:5 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\na=extmap:6 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\na=sendonly\r\na=rtcp-mux\r\na=rtcp-rsize\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=rtcp-fb:96 goog-remb\r\na=rtcp-fb:96 transport-cc\r\na=rtpmap:98 VP9/90000\r\na=rtcp-fb:98 ccm fir\r\na=rtcp-fb:98 nack\r\na=rtcp-fb:98 nack pli\r\na=rtcp-fb:98 goog-remb\r\na=rtcp-fb:98 transport-cc\r\na=rtpmap:100 H264/90000\r\na=rtcp-fb:100 ccm fir\r\na=rtcp-fb:100 nack\r\na=rtcp-fb:100 nack pli\r\na=rtcp-fb:100 goog-remb\r\na=rtcp-fb:100 transport-cc\r\na=fmtp:100 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\na=rtpmap:102 red/90000\r\na=rtpmap:127 ulpfec/90000\r\na=rtpmap:97 rtx/90000\r\na=fmtp:97 apt=96\r\na=rtpmap:99 rtx/90000\r\na=fmtp:99 apt=98\r\na=rtpmap:101 rtx/90000\r\na=fmtp:101 apt=100\r\na=rtpmap:125 rtx/90000\r\na=fmtp:125 apt=102\r\na=ssrc-group:FID 2153433678 4078641934\r\na=ssrc:2153433678 cname:vzLk4CiaFVX4EPN9\r\na=ssrc:2153433678 msid:PmCqQYM2SCc5oQGPke3t39AwKN3fN1VOpYuk 834133d2-6567-471c-98a3-9a82712ebbff\r\na=ssrc:2153433678 mslabel:PmCqQYM2SCc5oQGPke3t39AwKN3fN1VOpYuk\r\na=ssrc:2153433678 label:834133d2-6567-471c-98a3-9a82712ebbff\r\na=ssrc:4078641934 cname:vzLk4CiaFVX4EPN9\r\na=ssrc:4078641934 msid:PmCqQYM2SCc5oQGPke3t39AwKN3fN1VOpYuk 834133d2-6567-471c-98a3-9a82712ebbff\r\na=ssrc:4078641934 mslabel:PmCqQYM2SCc5oQGPke3t39AwKN3fN1VOpYuk\r\na=ssrc:4078641934 label:834133d2-6567-471c-98a3-9a82712ebbff\r\n"}	3626
+08:32:28.094
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:3883225187 1 udp 2122260223 10.1.10.37 62818 typ host generation 0 ufrag 3aIx network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test1"}	202
+08:32:28.095
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:3883225187 1 udp 2122260223 10.1.10.37 50046 typ host generation 0 ufrag 3aIx network-id 1","sdpMid":"video","sdpMLineIndex":1},"name":"test1"}	202
+08:32:28.097
+{"id":"receiveVideoAnswer","name":"test1","sdpAnswer":"v=0\r\no=- 3701655148 3701655148 IN IP4 0.0.0.0\r\ns=Kurento Media Server\r\nc=IN IP4 0.0.0.0\r\nt=0 0\r\na=msid-semantic: WMS PmCqQYM2SCc5oQGPke3t39AwKN3fN1VOpYuk\r\na=group:BUNDLE audio video\r\nm=audio 1 UDP/TLS/RTP/SAVPF 111 0\r\na=mid:audio\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=rtpmap:111 opus/48000/2\r\na=rtpmap:0 PCMU/8000\r\na=setup:active\r\na=recvonly\r\na=rtcp-mux\r\na=fmtp:111 minptime=10;useinbandfec=1\r\na=ssrc:3431313595 cname:user1426026541@host-406f983b\r\na=ice-ufrag:QRud\r\na=ice-pwd:PrYqn2pw9HZMWt66da7b+3\r\na=fingerprint:sha-256 84:F9:8A:18:8D:B0:3B:4A:FF:D7:11:4B:54:BC:E8:39:8E:71:0D:90:11:44:01:93:5C:38:70:58:C5:A1:0A:39\r\nm=video 1 UDP/TLS/RTP/SAVPF 96\r\na=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=mid:video\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=rtcp-fb:96 goog-remb\r\na=setup:active\r\na=recvonly\r\na=rtcp-mux\r\na=ssrc:461957115 cname:user1426026541@host-406f983b\r\na=ice-ufrag:QRud\r\na=ice-pwd:PrYqn2pw9HZMWt66da7b+3\r\na=fingerprint:sha-256 84:F9:8A:18:8D:B0:3B:4A:FF:D7:11:4B:54:BC:E8:39:8E:71:0D:90:11:44:01:93:5C:38:70:58:C5:A1:0A:39\r\n"}	1254
+08:32:28.126
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:1 1 UDP 2013266431 172.17.0.2 59409 typ host","sdpMid":"audio","sdpMLineIndex":0}}	154
+08:32:28.147
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:3 1 TCP 1015021823 172.17.0.2 44517 typ host tcptype passive","sdpMid":"audio","sdpMLineIndex":0}}	170
+08:32:28.155
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:1 2 UDP 2013266430 172.17.0.2 54958 typ host","sdpMid":"video","sdpMLineIndex":1}}	154
+08:32:28.159
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:2 1 TCP 1019216127 172.17.0.2 9 typ host tcptype active","sdpMid":"video","sdpMLineIndex":1}}	165
+08:32:28.161
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:2 1 TCP 1019216127 172.17.0.2 9 typ host tcptype active","sdpMid":"audio","sdpMLineIndex":0}}	165
+08:32:28.162
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:1 1 UDP 2013266431 172.17.0.2 59409 typ host","sdpMid":"video","sdpMLineIndex":1}}	154
+08:32:28.163
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:3 2 TCP 1015021822 172.17.0.2 57785 typ host tcptype passive","sdpMid":"video","sdpMLineIndex":1}}	170
+08:32:28.164
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:3 2 TCP 1015021822 172.17.0.2 57785 typ host tcptype passive","sdpMid":"audio","sdpMLineIndex":0}}	170
+08:32:28.165
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:2 2 TCP 1019216126 172.17.0.2 9 typ host tcptype active","sdpMid":"audio","sdpMLineIndex":0}}	165
+08:32:28.165
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:2 2 TCP 1019216126 172.17.0.2 9 typ host tcptype active","sdpMid":"video","sdpMLineIndex":1}}	165
+08:32:28.166
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:1 2 UDP 2013266430 172.17.0.2 54958 typ host","sdpMid":"audio","sdpMLineIndex":0}}	154
+08:32:28.167
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:3 1 TCP 1015021823 172.17.0.2 44517 typ host tcptype passive","sdpMid":"video","sdpMLineIndex":1}}	170
+08:32:28.168
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 195.239.51.235 50046 typ srflx raddr 10.1.10.37 rport 50046 generation 0 ufrag 3aIx network-id 1","sdpMid":"video","sdpMLineIndex":1},"name":"test1"}	234
+08:32:28.174
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 83.69.194.210 62818 typ srflx raddr 10.1.10.37 rport 62818 generation 0 ufrag 3aIx network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test1"}	233
+08:32:28.174
+{"id":"newParticipantArrived","name":"test2"}	45
+08:32:39.683
+{"id":"receiveVideoFrom","sender":"test2","sdpOffer":"v=0\r\no=- 8895953376614372554 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE audio video\r\na=msid-semantic: WMS\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111 103 104 9 0 8 106 105 13 110 112 113 126\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:yg5M\r\na=ice-pwd:kYgIFMrIH/xAzh6Q7XH32iHe\r\na=fingerprint:sha-256 9B:B7:84:DB:53:37:9A:DE:AE:A7:7E:3C:1C:83:5B:BB:4C:02:7A:D7:07:EF:ED:67:C7:B8:01:EF:23:F7:35:51\r\na=setup:actpass\r\na=mid:audio\r\na=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\na=recvonly\r\na=rtcp-mux\r\na=rtpmap:111 opus/48000/2\r\na=rtcp-fb:111 transport-cc\r\na=fmtp:111 minptime=10;useinbandfec=1\r\na=rtpmap:103 isac/16000\r\na=rtpmap:104 isac/32000\r\na=rtpmap:9 G722/8000\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:106 cn/32000\r\na=rtpmap:105 cn/16000\r\na=rtpmap:13 cn/8000\r\na=rtpmap:110 telephone-event/48000\r\na=rtpmap:112 telephone-event/32000\r\na=rtpmap:113 telephone-event/16000\r\na=rtpmap:126 telephone-event/8000\r\nm=video 9 UDP/TLS/RTP/SAVPF 96 98 100 102 127 97 99 101 125\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:yg5M\r\na=ice-pwd:kYgIFMrIH/xAzh6Q7XH32iHe\r\na=fingerprint:sha-256 9B:B7:84:DB:53:37:9A:DE:AE:A7:7E:3C:1C:83:5B:BB:4C:02:7A:D7:07:EF:ED:67:C7:B8:01:EF:23:F7:35:51\r\na=setup:actpass\r\na=mid:video\r\na=extmap:2 urn:ietf:params:rtp-hdrext:toffset\r\na=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=extmap:4 urn:3gpp:video-orientation\r\na=extmap:5 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\na=extmap:6 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\na=recvonly\r\na=rtcp-mux\r\na=rtcp-rsize\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=rtcp-fb:96 goog-remb\r\na=rtcp-fb:96 transport-cc\r\na=rtpmap:98 VP9/90000\r\na=rtcp-fb:98 ccm fir\r\na=rtcp-fb:98 nack\r\na=rtcp-fb:98 nack pli\r\na=rtcp-fb:98 goog-remb\r\na=rtcp-fb:98 transport-cc\r\na=rtpmap:100 H264/90000\r\na=rtcp-fb:100 ccm fir\r\na=rtcp-fb:100 nack\r\na=rtcp-fb:100 nack pli\r\na=rtcp-fb:100 goog-remb\r\na=rtcp-fb:100 transport-cc\r\na=fmtp:100 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\na=rtpmap:102 red/90000\r\na=rtpmap:127 ulpfec/90000\r\na=rtpmap:97 rtx/90000\r\na=fmtp:97 apt=96\r\na=rtpmap:99 rtx/90000\r\na=fmtp:99 apt=98\r\na=rtpmap:101 rtx/90000\r\na=fmtp:101 apt=100\r\na=rtpmap:125 rtx/90000\r\na=fmtp:125 apt=102\r\n"}	2525
+08:32:40.267
+{"id":"receiveVideoAnswer","name":"test2","sdpAnswer":"v=0\r\no=- 3701655160 3701655160 IN IP4 0.0.0.0\r\ns=Kurento Media Server\r\nc=IN IP4 0.0.0.0\r\nt=0 0\r\na=msid-semantic: WMS\r\na=group:BUNDLE audio video\r\nm=audio 1 UDP/TLS/RTP/SAVPF 111 0\r\na=mid:audio\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=rtpmap:111 opus/48000/2\r\na=rtpmap:0 PCMU/8000\r\na=setup:active\r\na=sendonly\r\na=rtcp-mux\r\na=fmtp:111 minptime=10;useinbandfec=1\r\na=ssrc:1496780295 cname:user252880175@host-3bd52bf4\r\na=ice-ufrag:nOPK\r\na=ice-pwd:6bMOznnB8aHM3e19ZYoX6/\r\na=fingerprint:sha-256 84:F9:8A:18:8D:B0:3B:4A:FF:D7:11:4B:54:BC:E8:39:8E:71:0D:90:11:44:01:93:5C:38:70:58:C5:A1:0A:39\r\nm=video 1 UDP/TLS/RTP/SAVPF 96\r\na=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=mid:video\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=rtcp-fb:96 goog-remb\r\na=setup:active\r\na=sendonly\r\na=rtcp-mux\r\na=ssrc:2326783668 cname:user252880175@host-3bd52bf4\r\na=ice-ufrag:nOPK\r\na=ice-pwd:6bMOznnB8aHM3e19ZYoX6/\r\na=fingerprint:sha-256 84:F9:8A:18:8D:B0:3B:4A:FF:D7:11:4B:54:BC:E8:39:8E:71:0D:90:11:44:01:93:5C:38:70:58:C5:A1:0A:39\r\n"}	1216
+08:32:40.294
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:3883225187 1 udp 2122260223 10.1.10.37 59404 typ host generation 0 ufrag yg5M network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test2"}	202
+08:32:40.304
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:3883225187 1 udp 2122260223 10.1.10.37 56273 typ host generation 0 ufrag yg5M network-id 1","sdpMid":"video","sdpMLineIndex":1},"name":"test2"}	202
+08:32:40.305
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 83.69.194.210 59404 typ srflx raddr 10.1.10.37 rport 59404 generation 0 ufrag yg5M network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test2"}	233
+08:32:40.305
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:1 1 UDP 2013266431 172.17.0.2 57005 typ host","sdpMid":"video","sdpMLineIndex":1}}	154
+08:32:40.318
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:1 2 UDP 2013266430 172.17.0.2 39020 typ host","sdpMid":"audio","sdpMLineIndex":0}}	154
+08:32:40.319
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:3 2 TCP 1015021822 172.17.0.2 57687 typ host tcptype passive","sdpMid":"audio","sdpMLineIndex":0}}	170
+08:32:40.321
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:3 2 TCP 1015021822 172.17.0.2 57687 typ host tcptype passive","sdpMid":"video","sdpMLineIndex":1}}	170
+08:32:40.323
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:2 2 TCP 1019216126 172.17.0.2 9 typ host tcptype active","sdpMid":"video","sdpMLineIndex":1}}	165
+08:32:40.324
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:3 1 TCP 1015021823 172.17.0.2 35631 typ host tcptype passive","sdpMid":"audio","sdpMLineIndex":0}}	170
+08:32:40.325
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:2 2 TCP 1019216126 172.17.0.2 9 typ host tcptype active","sdpMid":"audio","sdpMLineIndex":0}}	165
+08:32:40.326
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:1 2 UDP 2013266430 172.17.0.2 39020 typ host","sdpMid":"video","sdpMLineIndex":1}}	154
+08:32:40.327
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:2 1 TCP 1019216127 172.17.0.2 9 typ host tcptype active","sdpMid":"video","sdpMLineIndex":1}}	165
+08:32:40.328
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:3 1 TCP 1015021823 172.17.0.2 35631 typ host tcptype passive","sdpMid":"video","sdpMLineIndex":1}}	170
+08:32:40.329
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:2 1 TCP 1019216127 172.17.0.2 9 typ host tcptype active","sdpMid":"audio","sdpMLineIndex":0}}	165
+08:32:40.330
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:1 1 UDP 2013266431 172.17.0.2 57005 typ host","sdpMid":"audio","sdpMLineIndex":0}}	154
+08:32:40.332
+
+// second
+
+{"id":"joinRoom","name":"test2","room":"testing"}	49
+08:32:39.668
+{"id":"existingParticipants","data":["test1"]}	46
+08:32:39.685
+{"id":"receiveVideoFrom","sender":"test1","sdpOffer":"v=0\r\no=- 7253265293355546607 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE audio video\r\na=msid-semantic: WMS\r\nm=audio 65527 UDP/TLS/RTP/SAVPF 111 103 104 9 0 8 106 105 13 110 112 113 126\r\nc=IN IP4 10.1.10.37\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=candidate:3883225187 1 udp 2122260223 10.1.10.37 65527 typ host generation 0 network-id 1\r\na=ice-ufrag:Vq3E\r\na=ice-pwd:NT/jQ+uWR+PHOrD4Av5nyPXK\r\na=fingerprint:sha-256 41:4C:1E:52:CC:E6:FD:CB:9C:1F:C1:E9:7C:4E:ED:6C:51:77:94:7F:B9:85:71:B9:ED:07:A0:E3:04:63:46:D5\r\na=setup:actpass\r\na=mid:audio\r\na=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\na=recvonly\r\na=rtcp-mux\r\na=rtpmap:111 opus/48000/2\r\na=rtcp-fb:111 transport-cc\r\na=fmtp:111 minptime=10;useinbandfec=1\r\na=rtpmap:103 isac/16000\r\na=rtpmap:104 isac/32000\r\na=rtpmap:9 G722/8000\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:106 cn/32000\r\na=rtpmap:105 cn/16000\r\na=rtpmap:13 cn/8000\r\na=rtpmap:110 telephone-event/48000\r\na=rtpmap:112 telephone-event/32000\r\na=rtpmap:113 telephone-event/16000\r\na=rtpmap:126 telephone-event/8000\r\nm=video 59775 UDP/TLS/RTP/SAVPF 96 98 100 102 127 97 99 101 125\r\nc=IN IP4 10.1.10.37\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=candidate:3883225187 1 udp 2122260223 10.1.10.37 59775 typ host generation 0 network-id 1\r\na=ice-ufrag:Vq3E\r\na=ice-pwd:NT/jQ+uWR+PHOrD4Av5nyPXK\r\na=fingerprint:sha-256 41:4C:1E:52:CC:E6:FD:CB:9C:1F:C1:E9:7C:4E:ED:6C:51:77:94:7F:B9:85:71:B9:ED:07:A0:E3:04:63:46:D5\r\na=setup:actpass\r\na=mid:video\r\na=extmap:2 urn:ietf:params:rtp-hdrext:toffset\r\na=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=extmap:4 urn:3gpp:video-orientation\r\na=extmap:5 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\na=extmap:6 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\na=recvonly\r\na=rtcp-mux\r\na=rtcp-rsize\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=rtcp-fb:96 goog-remb\r\na=rtcp-fb:96 transport-cc\r\na=rtpmap:98 VP9/90000\r\na=rtcp-fb:98 ccm fir\r\na=rtcp-fb:98 nack\r\na=rtcp-fb:98 nack pli\r\na=rtcp-fb:98 goog-remb\r\na=rtcp-fb:98 transport-cc\r\na=rtpmap:100 H264/90000\r\na=rtcp-fb:100 ccm fir\r\na=rtcp-fb:100 nack\r\na=rtcp-fb:100 nack pli\r\na=rtcp-fb:100 goog-remb\r\na=rtcp-fb:100 transport-cc\r\na=fmtp:100 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\na=rtpmap:102 red/90000\r\na=rtpmap:127 ulpfec/90000\r\na=rtpmap:97 rtx/90000\r\na=fmtp:97 apt=96\r\na=rtpmap:99 rtx/90000\r\na=fmtp:99 apt=98\r\na=rtpmap:101 rtx/90000\r\na=fmtp:101 apt=100\r\na=rtpmap:125 rtx/90000\r\na=fmtp:125 apt=102\r\n"}	2729
+08:32:39.748
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:3883225187 1 udp 2122260223 10.1.10.37 65527 typ host generation 0 ufrag Vq3E network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test1"}	202
+08:32:39.797
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:3883225187 1 udp 2122260223 10.1.10.37 59775 typ host generation 0 ufrag Vq3E network-id 1","sdpMid":"video","sdpMLineIndex":1},"name":"test1"}	202
+08:32:39.798
+{"id":"receiveVideoFrom","sender":"test2","sdpOffer":"v=0\r\no=- 4607311040301700843 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE audio video\r\na=msid-semantic: WMS nJujvgvSno52DMnDH7aqYBjsKazHuBbKMe5A\r\nm=audio 56020 UDP/TLS/RTP/SAVPF 111 103 104 9 0 8 106 105 13 110 112 113 126\r\nc=IN IP4 10.1.10.37\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=candidate:3883225187 1 udp 2122260223 10.1.10.37 56020 typ host generation 0 network-id 1\r\na=ice-ufrag:uGve\r\na=ice-pwd:E0pBVL6PLbEGny9d6wP0wHmJ\r\na=fingerprint:sha-256 A7:EB:C8:EE:B0:95:B6:6F:17:04:39:9D:5A:A8:35:91:A1:88:AE:DB:F5:92:DA:BA:27:86:A7:11:0E:32:7B:6A\r\na=setup:actpass\r\na=mid:audio\r\na=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\na=sendonly\r\na=rtcp-mux\r\na=rtpmap:111 opus/48000/2\r\na=rtcp-fb:111 transport-cc\r\na=fmtp:111 minptime=10;useinbandfec=1\r\na=rtpmap:103 ISAC/16000\r\na=rtpmap:104 ISAC/32000\r\na=rtpmap:9 G722/8000\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:106 CN/32000\r\na=rtpmap:105 CN/16000\r\na=rtpmap:13 CN/8000\r\na=rtpmap:110 telephone-event/48000\r\na=rtpmap:112 telephone-event/32000\r\na=rtpmap:113 telephone-event/16000\r\na=rtpmap:126 telephone-event/8000\r\na=ssrc:1724533718 cname:IizmGI4U/eNpJkkq\r\na=ssrc:1724533718 msid:nJujvgvSno52DMnDH7aqYBjsKazHuBbKMe5A 500f977f-12de-4b18-9d79-57de69faa702\r\na=ssrc:1724533718 mslabel:nJujvgvSno52DMnDH7aqYBjsKazHuBbKMe5A\r\na=ssrc:1724533718 label:500f977f-12de-4b18-9d79-57de69faa702\r\nm=video 62744 UDP/TLS/RTP/SAVPF 96 98 100 102 127 97 99 101 125\r\nc=IN IP4 10.1.10.37\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=candidate:3883225187 1 udp 2122260223 10.1.10.37 62744 typ host generation 0 network-id 1\r\na=ice-ufrag:uGve\r\na=ice-pwd:E0pBVL6PLbEGny9d6wP0wHmJ\r\na=fingerprint:sha-256 A7:EB:C8:EE:B0:95:B6:6F:17:04:39:9D:5A:A8:35:91:A1:88:AE:DB:F5:92:DA:BA:27:86:A7:11:0E:32:7B:6A\r\na=setup:actpass\r\na=mid:video\r\na=extmap:2 urn:ietf:params:rtp-hdrext:toffset\r\na=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=extmap:4 urn:3gpp:video-orientation\r\na=extmap:5 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\na=extmap:6 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\na=sendonly\r\na=rtcp-mux\r\na=rtcp-rsize\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=rtcp-fb:96 goog-remb\r\na=rtcp-fb:96 transport-cc\r\na=rtpmap:98 VP9/90000\r\na=rtcp-fb:98 ccm fir\r\na=rtcp-fb:98 nack\r\na=rtcp-fb:98 nack pli\r\na=rtcp-fb:98 goog-remb\r\na=rtcp-fb:98 transport-cc\r\na=rtpmap:100 H264/90000\r\na=rtcp-fb:100 ccm fir\r\na=rtcp-fb:100 nack\r\na=rtcp-fb:100 nack pli\r\na=rtcp-fb:100 goog-remb\r\na=rtcp-fb:100 transport-cc\r\na=fmtp:100 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\na=rtpmap:102 red/90000\r\na=rtpmap:127 ulpfec/90000\r\na=rtpmap:97 rtx/90000\r\na=fmtp:97 apt=96\r\na=rtpmap:99 rtx/90000\r\na=fmtp:99 apt=98\r\na=rtpmap:101 rtx/90000\r\na=fmtp:101 apt=100\r\na=rtpmap:125 rtx/90000\r\na=fmtp:125 apt=102\r\na=ssrc-group:FID 4230992318 1785349561\r\na=ssrc:4230992318 cname:IizmGI4U/eNpJkkq\r\na=ssrc:4230992318 msid:nJujvgvSno52DMnDH7aqYBjsKazHuBbKMe5A 5eb20939-782d-4d07-a199-acc44b776d91\r\na=ssrc:4230992318 mslabel:nJujvgvSno52DMnDH7aqYBjsKazHuBbKMe5A\r\na=ssrc:4230992318 label:5eb20939-782d-4d07-a199-acc44b776d91\r\na=ssrc:1785349561 cname:IizmGI4U/eNpJkkq\r\na=ssrc:1785349561 msid:nJujvgvSno52DMnDH7aqYBjsKazHuBbKMe5A 5eb20939-782d-4d07-a199-acc44b776d91\r\na=ssrc:1785349561 mslabel:nJujvgvSno52DMnDH7aqYBjsKazHuBbKMe5A\r\na=ssrc:1785349561 label:5eb20939-782d-4d07-a199-acc44b776d91\r\n"}	3630
+08:32:39.809
+{"id":"receiveVideoAnswer","name":"test1","sdpAnswer":"v=0\r\no=- 3701655159 3701655159 IN IP4 0.0.0.0\r\ns=Kurento Media Server\r\nc=IN IP4 0.0.0.0\r\nt=0 0\r\na=msid-semantic: WMS\r\na=group:BUNDLE audio video\r\nm=audio 1 UDP/TLS/RTP/SAVPF 111 0\r\na=mid:audio\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=rtpmap:111 opus/48000/2\r\na=rtpmap:0 PCMU/8000\r\na=setup:active\r\na=sendonly\r\na=rtcp-mux\r\na=fmtp:111 minptime=10;useinbandfec=1\r\na=ssrc:4208922291 cname:user128404939@host-50ee8b76\r\na=ice-ufrag:z4sr\r\na=ice-pwd:WfLvDWlYfDKvt05+po6+k1\r\na=fingerprint:sha-256 84:F9:8A:18:8D:B0:3B:4A:FF:D7:11:4B:54:BC:E8:39:8E:71:0D:90:11:44:01:93:5C:38:70:58:C5:A1:0A:39\r\nm=video 1 UDP/TLS/RTP/SAVPF 96\r\na=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=mid:video\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=rtcp-fb:96 goog-remb\r\na=setup:active\r\na=sendonly\r\na=rtcp-mux\r\na=ssrc:2386833851 cname:user128404939@host-50ee8b76\r\na=ice-ufrag:z4sr\r\na=ice-pwd:WfLvDWlYfDKvt05+po6+k1\r\na=fingerprint:sha-256 84:F9:8A:18:8D:B0:3B:4A:FF:D7:11:4B:54:BC:E8:39:8E:71:0D:90:11:44:01:93:5C:38:70:58:C5:A1:0A:39\r\n"}	1216
+08:32:39.811
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:3883225187 1 udp 2122260223 10.1.10.37 56020 typ host generation 0 ufrag uGve network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test2"}	202
+08:32:39.829
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:3883225187 1 udp 2122260223 10.1.10.37 62744 typ host generation 0 ufrag uGve network-id 1","sdpMid":"video","sdpMLineIndex":1},"name":"test2"}	202
+08:32:39.831
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 195.239.51.235 65527 typ srflx raddr 10.1.10.37 rport 65527 generation 0 ufrag Vq3E network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test1"}	234
+08:32:39.834
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 195.239.51.235 59775 typ srflx raddr 10.1.10.37 rport 59775 generation 0 ufrag Vq3E network-id 1","sdpMid":"video","sdpMLineIndex":1},"name":"test1"}	234
+08:32:39.836
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 83.69.194.210 65527 typ srflx raddr 10.1.10.37 rport 65527 generation 0 ufrag Vq3E network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test1"}	233
+08:32:39.838
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 83.69.194.210 59775 typ srflx raddr 10.1.10.37 rport 59775 generation 0 ufrag Vq3E network-id 1","sdpMid":"video","sdpMLineIndex":1},"name":"test1"}	233
+08:32:39.840
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:3 1 TCP 1015021823 172.17.0.2 45909 typ host tcptype passive","sdpMid":"audio","sdpMLineIndex":0}}	170
+08:32:39.840
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:2 1 TCP 1019216127 172.17.0.2 9 typ host tcptype active","sdpMid":"audio","sdpMLineIndex":0}}	165
+08:32:39.843
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:3 2 TCP 1015021822 172.17.0.2 58847 typ host tcptype passive","sdpMid":"audio","sdpMLineIndex":0}}	170
+08:32:39.843
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:2 2 TCP 1019216126 172.17.0.2 9 typ host tcptype active","sdpMid":"audio","sdpMLineIndex":0}}	165
+08:32:39.845
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:1 2 UDP 2013266430 172.17.0.2 36930 typ host","sdpMid":"video","sdpMLineIndex":1}}	154
+08:32:39.845
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:1 2 UDP 2013266430 172.17.0.2 36930 typ host","sdpMid":"audio","sdpMLineIndex":0}}	154
+08:32:39.846
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:3 1 TCP 1015021823 172.17.0.2 45909 typ host tcptype passive","sdpMid":"video","sdpMLineIndex":1}}	170
+08:32:39.847
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:1 1 UDP 2013266431 172.17.0.2 43297 typ host","sdpMid":"video","sdpMLineIndex":1}}	154
+08:32:39.848
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:1 1 UDP 2013266431 172.17.0.2 43297 typ host","sdpMid":"audio","sdpMLineIndex":0}}	154
+08:32:39.848
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:3 2 TCP 1015021822 172.17.0.2 58847 typ host tcptype passive","sdpMid":"video","sdpMLineIndex":1}}	170
+08:32:39.849
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:2 2 TCP 1019216126 172.17.0.2 9 typ host tcptype active","sdpMid":"video","sdpMLineIndex":1}}	165
+08:32:39.850
+{"id":"iceCandidate","name":"test1","candidate":{"candidate":"candidate:2 1 TCP 1019216127 172.17.0.2 9 typ host tcptype active","sdpMid":"video","sdpMLineIndex":1}}	165
+08:32:39.854
+{"id":"receiveVideoAnswer","name":"test2","sdpAnswer":"v=0\r\no=- 3701655159 3701655159 IN IP4 0.0.0.0\r\ns=Kurento Media Server\r\nc=IN IP4 0.0.0.0\r\nt=0 0\r\na=msid-semantic: WMS nJujvgvSno52DMnDH7aqYBjsKazHuBbKMe5A\r\na=group:BUNDLE audio video\r\nm=audio 1 UDP/TLS/RTP/SAVPF 111 0\r\na=mid:audio\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=rtpmap:111 opus/48000/2\r\na=rtpmap:0 PCMU/8000\r\na=setup:active\r\na=recvonly\r\na=rtcp-mux\r\na=fmtp:111 minptime=10;useinbandfec=1\r\na=ssrc:741330291 cname:user3165522203@host-24f19f1a\r\na=ice-ufrag:0Wru\r\na=ice-pwd:4//sBa3w4DIqS2gnln+yW4\r\na=fingerprint:sha-256 84:F9:8A:18:8D:B0:3B:4A:FF:D7:11:4B:54:BC:E8:39:8E:71:0D:90:11:44:01:93:5C:38:70:58:C5:A1:0A:39\r\nm=video 1 UDP/TLS/RTP/SAVPF 96\r\na=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=mid:video\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=rtpmap:96 VP8/90000\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=rtcp-fb:96 goog-remb\r\na=setup:active\r\na=recvonly\r\na=rtcp-mux\r\na=ssrc:1186119645 cname:user3165522203@host-24f19f1a\r\na=ice-ufrag:0Wru\r\na=ice-pwd:4//sBa3w4DIqS2gnln+yW4\r\na=fingerprint:sha-256 84:F9:8A:18:8D:B0:3B:4A:FF:D7:11:4B:54:BC:E8:39:8E:71:0D:90:11:44:01:93:5C:38:70:58:C5:A1:0A:39\r\n"}	1254
+08:32:39.855
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 195.239.51.235 62744 typ srflx raddr 10.1.10.37 rport 62744 generation 0 ufrag uGve network-id 1","sdpMid":"video","sdpMLineIndex":1},"name":"test2"}	234
+08:32:39.877
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:72668815 1 udp 1686052607 83.69.194.210 56020 typ srflx raddr 10.1.10.37 rport 56020 generation 0 ufrag uGve network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test2"}	233
+08:32:39.878
+{"id":"onIceCandidate","candidate":{"candidate":"candidate:2851515539 1 tcp 1518280447 10.1.10.37 9 typ host tcptype active generation 0 ufrag uGve network-id 1","sdpMid":"audio","sdpMLineIndex":0},"name":"test2"}	213
+08:32:39.897
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:1 1 UDP 2013266431 172.17.0.2 56853 typ host","sdpMid":"video","sdpMLineIndex":1}}	154
+08:32:39.911
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:1 1 UDP 2013266431 172.17.0.2 56853 typ host","sdpMid":"audio","sdpMLineIndex":0}}	154
+08:32:39.912
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:2 1 TCP 1019216127 172.17.0.2 9 typ host tcptype active","sdpMid":"audio","sdpMLineIndex":0}}	165
+08:32:39.917
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:2 1 TCP 1019216127 172.17.0.2 9 typ host tcptype active","sdpMid":"video","sdpMLineIndex":1}}	165
+08:32:39.920
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:3 1 TCP 1015021823 172.17.0.2 50853 typ host tcptype passive","sdpMid":"audio","sdpMLineIndex":0}}	170
+08:32:39.922
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:3 1 TCP 1015021823 172.17.0.2 50853 typ host tcptype passive","sdpMid":"video","sdpMLineIndex":1}}	170
+08:32:39.935
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:1 2 UDP 2013266430 172.17.0.2 47854 typ host","sdpMid":"audio","sdpMLineIndex":0}}	154
+08:32:39.941
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:2 2 TCP 1019216126 172.17.0.2 9 typ host tcptype active","sdpMid":"audio","sdpMLineIndex":0}}	165
+08:32:39.945
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:1 2 UDP 2013266430 172.17.0.2 47854 typ host","sdpMid":"video","sdpMLineIndex":1}}	154
+08:32:39.946
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:3 2 TCP 1015021822 172.17.0.2 51873 typ host tcptype passive","sdpMid":"audio","sdpMLineIndex":0}}	170
+08:32:39.948
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:2 2 TCP 1019216126 172.17.0.2 9 typ host tcptype active","sdpMid":"video","sdpMLineIndex":1}}	165
+08:32:39.950
+{"id":"iceCandidate","name":"test2","candidate":{"candidate":"candidate:3 2 TCP 1015021822 172.17.0.2 51873 typ host tcptype passive","sdpMid":"video","sdpMLineIndex":1}}	170
+08:32:39.951

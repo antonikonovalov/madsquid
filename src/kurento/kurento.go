@@ -11,6 +11,7 @@ import (
 	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
+	"time"
 )
 
 var addr = flag.String(`kurento.addr`, `ws://localhost:8888/kurento`, `set your kurento media server WS endpoint`)
@@ -33,6 +34,8 @@ func New(ctx context.Context) (Kurento, error) {
 	}
 
 	go cli.loop()
+	go cli.pinger(ctx)
+
 	return cli, nil
 }
 
@@ -134,8 +137,8 @@ type ConstructorParams struct {
 
 type MediaObject struct {
 	Parent *MediaObject
-	ID     string
-	Type   MediaType
+	ID     string    `json:"id"`
+	Type   MediaType `json:"type"`
 }
 
 func (m *MediaObject) String() string {
@@ -163,9 +166,9 @@ type Kurento interface {
 }
 
 type errorKurento struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Data    string `json:"data"`
+	Code    int              `json:"code"`
+	Message string           `json:"message"`
+	Data    *json.RawMessage `json:"data"`
 }
 
 func (e *errorKurento) Error() string {
@@ -222,6 +225,25 @@ type kurentoClient struct {
 	cancel context.CancelFunc
 }
 
+func (k *kurentoClient) pinger(ctx context.Context) {
+	val := &struct {
+		Interval int `json:"interval"`
+	}{Interval: 240000}
+	tiker := time.NewTicker(40 * time.Second)
+	defer tiker.Stop()
+	for {
+		select {
+		case <-tiker.C:
+			_, err := k.send(newRequest(`ping`, val))
+			if err != nil {
+				log.Printf(`ping-pong err: %s`, err)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 func (k *kurentoClient) loop() error {
 	for {
 		select {
@@ -238,7 +260,7 @@ func (k *kurentoClient) loop() error {
 
 		k.queueLock.RLock()
 		out, ok := k.queue[resp.QueueName()]
-		k.queueLock.Unlock()
+		k.queueLock.RUnlock()
 		if !ok {
 			log.Print(`not found listener for response %v`, resp)
 		}
@@ -286,20 +308,23 @@ func (k *kurentoClient) send(req *request) (chan *response, error) {
 func (k *kurentoClient) Create(ctx context.Context, obj *MediaObject) error {
 	params := &struct {
 		Type              MediaType          `json:"type"`
-		SessionID         string             `json:"sessionId"`
+		SessionID         *string            `json:"sessionId,omitempty"`
+		Properties        *ConstructorParams `json:"properties"`
 		ConstructorParams *ConstructorParams `json:"constructorParams"`
 	}{
-		Type:      obj.Type,
-		SessionID: k.sessionID,
+		Type: obj.Type,
 	}
 
 	if obj.Type != MediaPipeline {
-		if &obj.Parent != nil {
+		if &obj.Parent == nil {
 			return errors.New(`not found media pipeline`)
 		}
 		params.ConstructorParams = &ConstructorParams{
 			MediaPipeline: &obj.Parent.ID,
 		}
+	}
+	if k.sessionID != "" {
+		params.SessionID = &k.sessionID
 	}
 
 	out, err := k.send(newRequest(`create`, params))
@@ -333,7 +358,7 @@ func (k *kurentoClient) Invoke(ctx context.Context, obj *MediaObject, operation 
 	params := &struct {
 		Object          string           `json:"object"`
 		Operation       string           `json:"operation"`
-		OperationParams *json.RawMessage `json:"operationParams"`
+		OperationParams *json.RawMessage `json:"operationParams,omitempty"`
 		SessionID       string           `json:"sessionId"`
 	}{
 		Object:          obj.ID,
@@ -364,8 +389,8 @@ func (k *kurentoClient) Invoke(ctx context.Context, obj *MediaObject, operation 
 			return err
 		}
 		k.sessionID = result.SessionID
-		if result.Value != nil {
-			buffer = result.Value
+		if result.Value != nil && buffer != nil {
+			*buffer = *result.Value
 		}
 	}
 	return nil

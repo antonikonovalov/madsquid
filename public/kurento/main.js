@@ -5,33 +5,41 @@ var signalingMethod = "websocket"; // websocket | post
 var audioCodec = "opus"
 var videoCodec = "vp8"
 
-var startButton = document.getElementById('startButton');
-var stopButton = document.getElementById('stopButton');
-var testButton = document.getElementById('testButton');
-startButton.disabled = false;
-stopButton.disabled = true
-testButton.disabled = true
+var firstPage = document.getElementById('first-page');
+var roomPage = document.getElementById('room-page');
+var joinButton = document.getElementById('joinButton');
+//var stopButton = document.getElementById('stopButton');
+//var testButton = document.getElementById('testButton');
+joinButton.disabled = false;
+//stopButton.disabled = true
+//testButton.disabled = true
 
-startButton.onclick = start;
+joinButton.onclick = join;
+/*
 stopButton.onclick = stop;
 testButton.onclick = test;
+*/
 
 var localVideo = document.getElementById('localVideo');
 
 var userNameInput = document.getElementById('userName');
+var roomNameInput = document.getElementById('roomName');
 
-userNameInput.onkeyup = userChanges;
+userNameInput.onkeyup = inputChanges;
+roomNameInput.onkeyup = inputChanges;
 
 var videoCheckbox = document.getElementById('videoCheckbox');
 var audioCheckbox = document.getElementById('audioCheckbox');
+//var upstreamCheckbox = document.getElementById('upstreamCheckbox');
 
 videoCheckbox.onclick = changeVideoTracks;
 audioCheckbox.onclick = changeAudioTracks;
+//upstreamCheckbox.onclick = changeUpstream;
 
 var usersDiv = document.getElementById('users');
 
-function userChanges(evt) {
-    startButton.disabled = !userNameInput.value
+function inputChanges(evt) {
+    joinButton.disabled = !(userNameInput.value||roomNameInput.value);
 }
 
 var pcs = {};
@@ -75,16 +83,30 @@ function gotStream(stream) {
 }
 
 
-function start() {
+function join() {
     userNameInput.disabled = true;
-    startButton.disabled = true;
-    stopButton.disabled = false;
-    testButton.disabled = false;
+    roomNameInput.disabled = true;
+    joinButton.disabled = true;
+    //stopButton.disabled = false;
+    //testButton.disabled = false;
 
-    localVideo.id = userNameInput.value
+    localVideo.id = userNameInput.value;
 
-    signalingChannel.start();
-};
+
+    signalingChannel.start(
+        function () {
+            signalingChannel.send({
+                cmd:"joinRoom",
+                room: roomNameInput.value,
+                user: userNameInput.value
+            });
+            firstPage.style.display = "none";
+            roomPage.style.display = "block";
+            callTo(userNameInput.value);
+        }
+    );
+
+}
 
 function stop() {
     userNameInput.disabled = false;
@@ -121,9 +143,10 @@ function test() {
 }
 
 function SignalingChannel() {
-	this.start = function() {
-        this.socket = new WebSocket("wss://"+window.location.host+"/groupcall?user="+encodeURIComponent(userNameInput.value));
+	this.start = function(cb) {
+        this.socket = new WebSocket("wss://"+window.location.host+"/kurento");
         this.socket.onopen = function() {
+             cb();
             console.log("websocket connected");
         };
         this.socket.onclose = function(event) {
@@ -146,7 +169,9 @@ function SignalingChannel() {
     }
 
     this.sendWebSocket = function(obj) {
-        this.socket.send(JSON.stringify({ for: callee, content: obj }));
+        if (obj != null) {
+        this.socket.send(JSON.stringify(obj));
+        }
     }
 
     this.sendPost = function(obj) {
@@ -183,7 +208,13 @@ function newPC(callee) {
     // send any ice candidates to the other peer
     pc.onicecandidate = function (evt) {
         console.log('Event "onicecandidate"');
-        signalingChannel.send(evt.candidate);
+        if (evt.candidate != null) {
+            signalingChannel.send({
+                cmd: 'onIceCandidate',
+                sender: callee,
+                candidate: {candidate:evt.candidate}
+            });
+        }
     };
 
     pc.onnegotiationneeded = function () {
@@ -193,14 +224,20 @@ function newPC(callee) {
                 offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
             }
             pc.setLocalDescription(offer);
-            signalingChannel.send(offer);
+            signalingChannel.send({
+                cmd:"receiveVideoFrom",
+                sender: callee,
+                sdpOffer: offer.sdp
+            });
         })
         .catch(logError);
     };
 
     pc.onaddstream = function(e) {
-        var remoteVideo = document.getElementById(callee);
-        remoteVideo.srcObject = e.stream;
+        if (callee != userNameInput.value) {
+            var remoteVideo = document.getElementById(callee);
+            remoteVideo.srcObject = e.stream;
+        }
         console.log('received remote stream');
     }
 
@@ -224,11 +261,29 @@ function callTo(user) {
 }
 
 function parseMsg(msg) {
-    var data = msg.content
-    if (!data) return
+    var data = msg;
+    if (!data) return;
 
-    callee = msg.from;
+
+
+    var callee = data.name;
     var pc = pcs[callee] || newPC(callee);
+
+    switch(data.cmd) {
+        case 'receiveVideoAnswer':
+            console.log('answer received');
+            pc.setRemoteDescription(new RTCSessionDescription({"type":"answer","sdp":data.sdpAnswer}))
+                .catch(logError);
+            break;
+
+        case 'iceCandidate':
+            console.log('answer received');
+            pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(logError);
+            break;
+
+    }
+
+
 
     if (data.type == "offer") {
         console.log('offer received');
@@ -254,9 +309,7 @@ function parseMsg(msg) {
         .catch(logError);
 
 	} else if (data.type == "answer") {
-		console.log('answer received')
-        pc.setRemoteDescription(new RTCSessionDescription(data))
-        .catch(logError);
+
 
     } else if (data.type == "users") {
         console.log("get users: " + data.users)

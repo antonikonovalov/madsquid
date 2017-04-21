@@ -28,6 +28,7 @@ func (app *App) Run() {
 	defer cancel()
 	service := handlers.NewService()
 	http.HandleFunc("/ws", service.WSHandle)
+	http.Handle("/kurento/_schema", kurentoService)
 	http.Handle("/kurento", kurentoService)
 	http.HandleFunc("/messages", service.PostMessage)
 	http.Handle("/", http.FileServer(http.Dir("public/kurento")))

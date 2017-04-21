@@ -1,24 +1,35 @@
 <html>
 <head>
-	<title>WebRTC test page</title>
+	<title>Kurento media server Group Call test page</title>
 	<link rel="stylesheet" href="/main.css" />
 	<script src="//webrtc.github.io/adapter/adapter-latest.js"></script>
 </head>
 <body>
-<h1>WebRTC test page</h1>
-Your name: <input type="text" id="userName" />
-<button id="startButton">Start</button>
-<button id="stopButton">Stop</button>
-<button id="testButton">Test</button>
-<div>
-	Local video:<br>
-    <video id="localVideo" autoplay muted></video><br>
-    <input type="checkbox" id="videoCheckbox" value="1" checked> video
-    <input type="checkbox" id="audioCheckbox" value="1" checked> audio
+
+<div id="first-page" class="likeform">
+	<h1>Kurento media server Group Call test page</h1>
+	<div>Your name: <input type="text" id="userName" /></div>
+	<div>Room: <input type="text" id="roomName" /></div>
+	<button id="joinButton">Join</button>
 </div>
-<h3>Calling</h3>
-<div>Remote sessions:</div>
-<div id="users"></div>
+
+
+<div id="room-page">
+	<div class="likeform">
+		Local video:<br>
+    	<video id="localVideo" autoplay muted></video><br>
+    	<input type="checkbox" id="videoCheckbox" value="1" checked> video
+    	<input type="checkbox" id="audioCheckbox" value="1" checked> audio
+		<input type="checkbox" id="upstreamCheckbox" value="1">  upstream
+	</div>
+	<div class="likeform">
+		<h3>Calling</h3>
+		<div>Remote sessions:</div>
+		<div id="users"></div>
+	</div>
+</div>
+
+
 <script src="/codecs.js"></script>
 <script src="/main.js"></script>
 </body>
