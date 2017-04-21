@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"time"
 )
 
 func NewService(ctx context.Context) (http.Handler, error) {
@@ -98,7 +99,7 @@ type WsRequest struct {
 
 type WsErrAnswer struct {
 	Request *WsRequest `json:"request"`
-	Error   error      `json:"error"`
+	Error   string     `json:"error"`
 }
 
 /*
@@ -143,6 +144,33 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 	}
 	defer wsConn.Close()
+
+	wsConn.SetReadLimit(maxMessageSize)
+	wsConn.SetReadDeadline(time.Now().Add(pongWait))
+	wsConn.SetPongHandler(func(string) error { wsConn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	ctx := r.Context()
+
+	go func() {
+		ticker := time.NewTicker(pingPeriod)
+		defer func() {
+			ticker.Stop()
+			wsConn.Close()
+		}()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := wsConn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+					log.Printf("WEBSOCKET PING ERROR: %s", err)
+					return
+				}
+
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	messages := make(chan *WsRequest, 0)
 	go func() {
 		for {
@@ -158,26 +186,43 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	ctx := r.Context()
+	err = wsConn.WriteJSON(map[string]string{"hello": "world"})
+	if err != nil {
+		log.Println(`can't write to ws %s`, err)
+		return
+	}
+
 	currentUser := NewUser("", wsConn, nil)
 	for {
 
 		select {
 		// processing message from webSocket
-		case wsReq := <-messages:
+		case wsReq, ok := <-messages:
+			if !ok {
+				return
+			}
+			log.Printf("start processed %s", wsReq.Cmd)
+
 			switch wsReq.Cmd {
 			case JoinRoomWsCmd:
-				err = s.joinRoom(ctx, wsConn, currentUser, wsReq)
+				log.Print("started call joinRoom")
+				err = s.joinRoom(ctx, currentUser, wsReq)
+				log.Print("ended call joinRoom")
 			case ReceiveVideoFromWsCmd:
+				log.Print("started call receiveVideoFrom")
 				err = s.receiveVideoFrom(ctx, currentUser, wsReq)
+				log.Print("ended call receiveVideoFrom")
 			case OnIceCandidateWsCmd:
+				log.Print("started call onIceCandidate")
 				err = s.onIceCandidate(ctx, currentUser, wsReq)
+				log.Print("ended call onIceCandidate")
 			}
 
 			// error processing
 			if err != nil {
 				log.Printf(`cmd:%s: err: %s`, wsReq.Cmd, err)
-				err = wsConn.WriteJSON(&WsErrAnswer{Request: wsReq, Error: err})
+				wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+				err = wsConn.WriteJSON(&WsErrAnswer{Request: wsReq, Error: err.Error()})
 				if err != nil {
 					log.Printf(`can't write to web socket: %s'`, err)
 					return
@@ -257,6 +302,18 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 			return err
 		}
 
+		// add listener
+		go func() {
+			for event := range eventIceCandidateFound {
+				answer := &IceCandidateAnswer{}
+				_ = json.Unmarshal(event, answer)
+				answer.Cmd = IceCandidateWsCmd
+				answer.Name = currentUser.name
+				currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+				_ = currentUser.wsConn.WriteJSON(answer)
+			}
+		}()
+
 		raw, err := json.Marshal(map[string]string{"offer": req.SdpOffer})
 		if err != nil {
 			return err
@@ -270,6 +327,7 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 			return err
 		}
 		// return answer to client
+		currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
 		err = currentUser.wsConn.WriteJSON(&ReceiveVideoAnswerForm{
 			Cmd:       ReceiveVideoAnswerWsCmd,
 			Name:      currentUser.name,
@@ -278,17 +336,6 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 		if err != nil {
 			return err
 		}
-
-		// add listener
-		go func() {
-			for event := range eventIceCandidateFound {
-				answer := &IceCandidateAnswer{}
-				_ = json.Unmarshal(event, answer)
-				answer.Cmd = IceCandidateWsCmd
-				answer.Name = currentUser.name
-				_ = currentUser.wsConn.WriteJSON(answer)
-			}
-		}()
 
 		// fire event!
 		err = s.cli.Invoke(ctx, currentUser.In, GatherCandidatesInvokeOperation, nil)
@@ -300,7 +347,7 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 	return nil
 }
 
-func (s *service) joinRoom(ctx context.Context, wsConn *websocket.Conn, currentUser *User, req *WsRequest) error {
+func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsRequest) error {
 	s.lock.RLock()
 	room, ok := s.rooms[req.Room]
 	s.lock.RUnlock()
@@ -344,6 +391,7 @@ func (s *service) joinRoom(ctx context.Context, wsConn *websocket.Conn, currentU
 			continue
 		}
 		users = append(users, name)
+		user.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
 		err = user.wsConn.WriteJSON(&NewParticipantArrivedForm{
 			Cmd:  NewParticipantArrivedWsCmd,
 			Name: req.User,
@@ -352,6 +400,7 @@ func (s *service) joinRoom(ctx context.Context, wsConn *websocket.Conn, currentU
 			return err
 		}
 	}
+	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
 	return currentUser.wsConn.WriteJSON(&ExistingParticipantsForm{
 		Cmd:  ExistingParticipantsWsCmd,
 		Data: users,

@@ -3,15 +3,15 @@ package kurento
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
-	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
-	"time"
 )
 
 var addr = flag.String(`kurento.addr`, `ws://localhost:8888/kurento`, `set your kurento media server WS endpoint`)
@@ -234,10 +234,11 @@ func (k *kurentoClient) pinger(ctx context.Context) {
 	for {
 		select {
 		case <-tiker.C:
-			_, err := k.send(newRequest(`ping`, val))
+			out, err := k.send(newRequest(`ping`, val))
 			if err != nil {
 				log.Printf(`ping-pong err: %s`, err)
 			}
+			<-out
 		case <-ctx.Done():
 			return
 		}
@@ -248,15 +249,24 @@ func (k *kurentoClient) loop() error {
 	for {
 		select {
 		case <-k.cctx.Done():
+			log.Print("kurentoClient: loop was done: %s", k.cctx.Err())
 			return k.cctx.Err()
 		default:
 		}
 
 		resp := &response{}
+		k.ws.SetReadLimit(maxMessageSize)
+		k.ws.SetReadDeadline(time.Now().Add(pongWait))
+
+		log.Print("kurentoClient: started read")
+
 		err := k.ws.ReadJSON(resp)
 		if err != nil {
+			log.Print("kurentoClient: read error %s", err)
 			return err
 		}
+
+		log.Printf("kurentoClient: [%s] ended read %s, %s", resp.QueueName(), resp, err)
 
 		k.queueLock.RLock()
 		out, ok := k.queue[resp.QueueName()]
@@ -264,7 +274,13 @@ func (k *kurentoClient) loop() error {
 		if !ok {
 			log.Print(`not found listener for response %v`, resp)
 		}
-		out <- resp
+		select {
+		case out <- resp:
+			log.Printf("kurentoClient: [%s] ended read PUT_ANSWER", resp.QueueName())
+		default:
+			log.Printf("kurentoClient: [%s] ended read NOT_HAVE_LISTENERS", resp.QueueName())
+		}
+
 	}
 	return nil
 }
@@ -287,21 +303,21 @@ func newRequest(method string, p interface{}) *request {
 
 func (k *kurentoClient) send(req *request) (chan *response, error) {
 	queueName := req.ID
-	out := make(chan *response, 0)
 
+	k.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	log.Printf("kurentoClient: [%s] started send %v", req.ID, req)
+	err := k.ws.WriteJSON(req)
+	if err != nil {
+		log.Printf("kurentoClient: [%s] started send err %s", req.ID, err)
+		return nil, err
+	}
+
+	out := make(chan *response, 0)
 	k.queueLock.Lock()
 	k.queue[queueName] = out
 	k.queueLock.Unlock()
 
-	err := k.ws.WriteJSON(req)
-	if err != nil {
-
-		k.queueLock.Lock()
-		delete(k.queue, queueName)
-		k.queueLock.Unlock()
-
-		return nil, err
-	}
+	log.Printf("kurentoClient: [%s] ended send %s", req.ID, err)
 	return out, nil
 }
 
@@ -309,19 +325,19 @@ func (k *kurentoClient) Create(ctx context.Context, obj *MediaObject) error {
 	params := &struct {
 		Type              MediaType          `json:"type"`
 		SessionID         *string            `json:"sessionId,omitempty"`
-		Properties        *ConstructorParams `json:"properties"`
+		Properties        map[string]string  `json:"properties"`
 		ConstructorParams *ConstructorParams `json:"constructorParams"`
 	}{
-		Type: obj.Type,
+		Type:              obj.Type,
+		Properties:        make(map[string]string, 0),
+		ConstructorParams: &ConstructorParams{},
 	}
 
 	if obj.Type != MediaPipeline {
 		if &obj.Parent == nil {
 			return errors.New(`not found media pipeline`)
 		}
-		params.ConstructorParams = &ConstructorParams{
-			MediaPipeline: &obj.Parent.ID,
-		}
+		params.ConstructorParams.MediaPipeline = &obj.Parent.ID
 	}
 	if k.sessionID != "" {
 		params.SessionID = &k.sessionID

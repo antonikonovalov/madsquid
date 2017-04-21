@@ -56,7 +56,7 @@ function trackOptions() {
 
 function iceServers() {
     return [
-        {url:'stun:stun.l.google.com:19302'}
+        {urls:['stun:stun.l.google.com:19302']}
     ]
 }
 
@@ -110,9 +110,10 @@ function join() {
 
 function stop() {
     userNameInput.disabled = false;
-    startButton.disabled = false;
-    stopButton.disabled = true;
-    testButton.disabled = true;
+    roomNameInput.disabled = false;
+    joinButton.disabled = false;
+ //   stopButton.disabled = true;
+  //  testButton.disabled = true;
 
     usersDiv.innerHTML = '';
 
@@ -127,7 +128,9 @@ function stop() {
             pcs[key].close();
         }
     })
-    
+
+    firstPage.style.display = "block";
+    roomPage.style.display = "none";
     localStream = null;
 }
 
@@ -220,9 +223,9 @@ function newPC(callee) {
     pc.onnegotiationneeded = function () {
         console.log('Event "onnegotiationneeded"')
         pc.createOffer().then(function (offer) {
-            if (typeof replaceCodecs === 'function') {
-                offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
-            }
+            // if (typeof replaceCodecs === 'function') {
+            //     offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
+            // }
             pc.setLocalDescription(offer);
             signalingChannel.send({
                 cmd:"receiveVideoFrom",
@@ -234,12 +237,12 @@ function newPC(callee) {
     };
 
     pc.onaddstream = function(e) {
+        console.log('received remote stream');
         if (callee != userNameInput.value) {
             var remoteVideo = document.getElementById(callee);
             remoteVideo.srcObject = e.stream;
         }
-        console.log('received remote stream');
-    }
+    };
 
     pcs[callee] = pc;
 
@@ -265,6 +268,10 @@ function parseMsg(msg) {
     if (!data) return;
 
 
+    if (data.error != null) {
+        console.error(data);
+        return stop();
+    }
 
     var callee = data.name;
     var pc = pcs[callee] || newPC(callee);
@@ -277,13 +284,89 @@ function parseMsg(msg) {
             break;
 
         case 'iceCandidate':
-            console.log('answer received');
+            console.log('iceCandidate');
             pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(logError);
             break;
 
+        case 'newParticipantArrived':
+            if (data.name==userNameInput.value) return;
+
+            var videotag = document.getElementById(data.name);
+            console.log("videotag", videotag);
+            if (videotag === null) {
+                var container = document.createElement('div');
+                container.className = "container";
+                var video = document.createElement('video');
+                video.id = data.name;
+                video.autoplay = true;
+                container.appendChild(video);
+                var link = document.createElement('a');
+                link.href = '#';
+                link.className = 'video-label';
+                link.innerHTML = '<b> call '+data.name+'</b>';
+                link.onclick = function() {
+                    callTo(data.name);
+                    return false;
+                };
+                container.appendChild(link);
+
+                usersDiv.appendChild(container);
+            }
+            break;
+        case 'existingParticipants':
+            console.log('existingParticipants');
+            console.log("get users: " + data.data);
+            data.data.forEach(function(u) {
+                if (u==userNameInput.value) return;
+
+                var videotag = document.getElementById(u);
+                console.log("videotag", videotag);
+                if (videotag === null) {
+                    var container = document.createElement('div');
+                    container.className = "container";
+                    var video = document.createElement('video');
+                    video.id = u;
+                    video.autoplay = true;
+                    container.appendChild(video);
+                    var link = document.createElement('a');
+                    link.href = '#';
+                    link.className = 'video-label';
+                    link.innerHTML = '<b> call to '+u+'</b>';
+                    link.onclick = function() {
+                        callTo(u);
+                        return false;
+                    }
+                    container.appendChild(link);
+
+                    usersDiv.appendChild(container);
+                }
+            });
+
+            Object.keys(pcs).map(function(key, ind){
+                if (pcs[key].signalingState =="closed") {
+                    delete pcs[key];
+                } else if (pcs[key].signalingState !="closed" && !data.data.includes(key)) {
+                    pcs[key].getLocalStreams().forEach(function(s) {
+                        s.getTracks().forEach(function(t) {t.stop()});
+                    });
+                    pcs[key].close();
+                    delete pcs[key];
+                }
+            });
+
+            Array.from(document.getElementsByClassName("container")).forEach(function(cont){
+                if (!data.data.includes(cont.getElementsByTagName("video")[0].id)){
+                    cont.parentNode.removeChild(cont);
+                }
+            });
+
+            break;
     }
 
+    return
 
+
+    /*
 
     if (data.type == "offer") {
         console.log('offer received');
@@ -364,6 +447,7 @@ function parseMsg(msg) {
     	   pc.addIceCandidate(new RTCIceCandidate(data)).catch(logError);
         }
     }
+    */
 }
 
 function logError(error) {
