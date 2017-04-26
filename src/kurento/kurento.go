@@ -279,7 +279,8 @@ func (k *kurentoClient) loop() error {
 		case out <- resp:
 			log.Printf("kurentoClient: [%s] ended read PUT_ANSWER", resp.QueueName())
 		default:
-			log.Printf("kurentoClient: [%s] ended read NOT_HAVE_LISTENERS", resp.QueueName())
+			desc, _ := json.MarshalIndent(resp, "", "\t")
+			log.Printf("REJECT___________REJECT___________kurentoClient: [%s] ended read NOT_HAVE_LISTENERS: \n%s", resp.QueueName(), string(desc))
 		}
 
 	}
@@ -302,12 +303,17 @@ func newRequest(method string, p interface{}) *request {
 	}
 }
 
+var lockSender = &sync.Mutex{}
+
 func (k *kurentoClient) send(req *request) (chan *response, func(), error) {
 	queueName := req.ID
 
 	//	k.ws.SetWriteDeadline(time.Now().Add(writeWait))
 	log.Printf("kurentoClient: [%s] started send %v", req.ID, req)
+	lockSender.Lock()
 	err := k.ws.WriteJSON(req)
+	lockSender.Unlock()
+
 	if err != nil {
 		log.Printf("kurentoClient: [%s] started send err %s", req.ID, err)
 		return nil, nil, err
@@ -460,15 +466,17 @@ func (k *kurentoClient) Subscribe(ctx context.Context, obj *MediaObject, topic S
 	}
 
 	//registry subscribe path to route queue
-	outBuffer := make(chan []byte, 0)
+	outBuffer := make(chan []byte, 100)
 	topicUrl := obj.ID + `/` + string(topic)
-	topicChannel := make(chan *response, 0)
+	topicChannel := make(chan *response, 100)
 	go func() {
 		defer close(topicChannel)
 		defer close(outBuffer)
 		defer k.unsubscribe(ctx, obj, result.Value)
+		count := 0
 
 		for {
+			count++
 			select {
 			case <-k.cctx.Done():
 				return
@@ -476,9 +484,17 @@ func (k *kurentoClient) Subscribe(ctx context.Context, obj *MediaObject, topic S
 				return
 			case event, ok := <-topicChannel:
 				if !ok {
+					log.Printf("kurentoClient: [%s] channel was closed", topicUrl)
 					return
 				}
-				outBuffer <- *event.Params.Value.Data
+
+				select {
+				case outBuffer <- *event.Params.Value.Data:
+					log.Printf("kurentoClient: [%s] subsriber PUT_BUFFER_%d", topicUrl, count)
+				default:
+					desc, _ := json.MarshalIndent(event, "", "\t")
+					log.Printf("REJECT___________REJECT___________kurentoClient: [%s] subsriber WAS_REJECTED_%d : \n %s", topicUrl, count, desc)
+				}
 			}
 		}
 	}()

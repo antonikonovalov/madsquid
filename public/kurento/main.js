@@ -54,10 +54,8 @@ function trackOptions() {
     };
 }
 
-function iceServers() {
-    return [
-        {urls:['stun:stun.l.google.com:19302']}
-    ]
+function ConfigPC() {
+    return { iceServers: [{"urls":"stun:stun2.l.google.com:19302"}, {urls:"stun:stun.ekiga.net"}]}
 }
 
 function changeVideoTracks() {
@@ -205,6 +203,7 @@ function SignalingChannel() {
     }
 }
 
+var sendOfferCfg = {offerToReceiveVideo: -1, offerToReceiveAudio: -1, voiceActivityDetection: true, iceRestart: false};
 var recvOfferCfg = {offerToReceiveVideo: 1, offerToReceiveAudio: 1, voiceActivityDetection: true, iceRestart: false};
     // {
     //     offerToReceiveAudio: {
@@ -225,7 +224,7 @@ var recvOfferCfg = {offerToReceiveVideo: 1, offerToReceiveAudio: 1, voiceActivit
 
 function newPC(callee) {
 
-    var pc = new RTCPeerConnection(null);
+    var pc = new RTCPeerConnection(ConfigPC());
     // send any ice candidates to the other peer
     pc.onicecandidate = function (evt) {
         console.log('Event "onicecandidate"');
@@ -240,38 +239,29 @@ function newPC(callee) {
 
     pc.onnegotiationneeded = function () {
         console.log('Event "onnegotiationneeded"')
+        var cfgOffer = sendOfferCfg;
+
         if (localStream != null) {
-            pc.createOffer(recvOfferCfg).then(function (offer) {
-                // if (typeof replaceCodecs === 'function') {
-                //     offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
-                // }
-                pc.setLocalDescription(offer);
-                signalingChannel.send({
-                    cmd: "receiveVideoFrom",
-                    sender: callee,
-                    sdpOffer: offer.sdp
-                });
-            }).catch(logError);
-        } else {
-            pc.createOffer({offerToReceiveAudio: 0, offerToReceiveVideo: 0}).then(function (offer) {
-                // if (typeof replaceCodecs === 'function') {
-                //     offer.sdp = replaceCodecs(offer.sdp, audioCodec, videoCodec)
-                // }
-                pc.setLocalDescription(offer);
-                signalingChannel.send({
-                    cmd: "receiveVideoFrom",
-                    sender: callee,
-                    sdpOffer: offer.sdp
-                });
-            }).catch(logError);
+            cfgOffer = recvOfferCfg;
         }
+
+        pc.createOffer(cfgOffer).then(function (offer) {
+            pc.setLocalDescription(offer);
+            signalingChannel.send({
+                cmd: "receiveVideoFrom",
+                sender: callee,
+                sdpOffer: offer.sdp
+            });
+        }).catch(logError);
     };
 
     pc.onaddstream = function(e) {
         console.log('received remote stream');
         if (callee != userNameInput.value) {
             var remoteVideo = document.getElementById(callee);
+            // remoteVideo.pause();
             remoteVideo.srcObject = e.stream;
+            // remoteVideo.load();
         }
     };
 
@@ -329,6 +319,23 @@ function parseMsg(msg) {
             pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(logError);
             break;
 
+        case  'endpointWasConnected':
+
+
+            /*
+            if (data.name==userNameInput.value) return;
+            pc = pcs[data.name];
+            if (!!pc.restarted) return;
+            var videotag = document.getElementById(data.name);
+            console.log('endpointWasConnected',"YO!");
+            callTo(data.name);
+
+            pc.restarted = true;
+            videotag.pause();
+            videotag.load();
+            */
+            break;
+
         case 'newParticipantArrived':
             if (data.name==userNameInput.value) return;
 
@@ -360,7 +367,7 @@ function parseMsg(msg) {
             console.log('existingParticipants');
             console.log("get users: " + data.data);
             if (data.data.length === 0 ) return;
-            return;
+
             data.data.forEach(function(u) {
                 if (u==userNameInput.value) return;
 
@@ -387,6 +394,8 @@ function parseMsg(msg) {
                 }
             });
 
+
+            /*
             Object.keys(pcs).map(function(key, ind){
                 if (pcs[key].signalingState =="closed") {
                     delete pcs[key];
@@ -404,6 +413,7 @@ function parseMsg(msg) {
                     cont.parentNode.removeChild(cont);
                 }
             });
+            */
 
             break;
     }

@@ -209,12 +209,6 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	err = wsConn.WriteJSON(map[string]string{"hello": "world"})
-	if err != nil {
-		log.Println(`can't write to ws %s`, err)
-		return
-	}
-
 	currentUser := NewUser("", wsConn, nil)
 	for {
 
@@ -284,6 +278,17 @@ func (s *service) onIceCandidate(ctx context.Context, currentUser *User, req *Ws
 		if err != nil {
 			return err
 		}
+	} else {
+		currentUser.lock.Lock()
+		connectorMedia, ok := currentUser.Out[req.Sender]
+		currentUser.lock.Unlock()
+		if !ok {
+			return fmt.Errorf("[%s] user %s not found in out %s ", req.Cmd, req.Sender, currentUser.name)
+		}
+		err = s.cli.Invoke(ctx, connectorMedia.Point, AddIceCandidateInvokeOperation, req.Candidate)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -300,45 +305,116 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 		return fmt.Errorf("currentUser for req %s is nil ", req.Cmd)
 	}
 
+	s.lock.Lock()
+	currentRoom, ok := s.rooms[currentUser.roomName]
+	s.lock.Unlock()
+
+	if !ok {
+		return fmt.Errorf("currentRoom %s for req %s is nil ", currentUser.roomName, req.Cmd)
+	}
+
 	var (
 		err               error
 		sinkMediaObject   *MediaObject
-		currentRoom       = currentUser.room
 		needNotification  bool
-		AnswerForUserName = currentUser.name
+		AnswerForUserName = req.Sender
 		connectEndpoints  = func() error { return nil }
 	)
 
-	if currentUser.name == req.Sender {
-		needNotification = true
-		// create webrtc endpoint
+	log.Printf("currentUser.name %s <=> %s", currentUser.name, req.Sender)
+	if currentUser.name != req.Sender && currentUser.IsEmptyIn() {
 		err = s.cli.Create(ctx, currentUser.In)
 		if err != nil {
 			return err
 		}
-		sinkMediaObject = currentUser.In
-	} else {
 
-		currentRoom.lock.RLock()
-		sourceUser, ok := currentRoom.Users[req.Sender]
-		currentRoom.lock.RUnlock()
+		for _, user := range currentRoom.ListUsers() {
+			if user.name == currentUser.name {
+				continue
+			}
+			sinkMediaObjectPoint := &MediaObject{
+				Parent: currentRoom.MediaPipeline,
+				Type:   WebRtcEndpoint,
+			}
+
+			err = s.cli.Create(ctx, sinkMediaObjectPoint)
+			if err != nil {
+				return err
+			}
+			sink := &struct {
+				Sink string `json:"sink"`
+			}{
+				Sink: sinkMediaObjectPoint.ID,
+			}
+
+			raw, err := json.Marshal(sink)
+			if err != nil {
+				return err
+			}
+			payload := &json.RawMessage{}
+
+			_ = payload.UnmarshalJSON(raw)
+			err = s.cli.Invoke(ctx, user.In, ConnectInvokeOperation, payload)
+			if err != nil {
+				return err
+			}
+			currentUser.lock.Lock()
+			currentUser.Out[user.name] = &MediaConnector{
+				Point:  sinkMediaObjectPoint,
+				Source: user.In,
+			}
+			currentUser.lock.Unlock()
+
+			// AND REVERT
+
+			currentUserMediaObjectPoint := &MediaObject{
+				Parent: currentRoom.MediaPipeline,
+				Type:   WebRtcEndpoint,
+			}
+
+			err = s.cli.Create(ctx, currentUserMediaObjectPoint)
+			if err != nil {
+				return err
+			}
+			sinkC := &struct {
+				Sink string `json:"sink"`
+			}{
+				Sink: currentUserMediaObjectPoint.ID,
+			}
+
+			rawC, err := json.Marshal(sinkC)
+			if err != nil {
+				return err
+			}
+			payloadC := &json.RawMessage{}
+
+			_ = payloadC.UnmarshalJSON(rawC)
+			err = s.cli.Invoke(ctx, currentUser.In, ConnectInvokeOperation, payloadC)
+			if err != nil {
+				return err
+			}
+			user.lock.Lock()
+			user.Out[currentUser.name] = &MediaConnector{
+				Point:  currentUserMediaObjectPoint,
+				Source: currentUser.In,
+			}
+			user.lock.Unlock()
+		}
+
+		currentUser.lock.Lock()
+		connectorMedia, ok := currentUser.Out[req.Sender]
+		currentUser.lock.Unlock()
 		if !ok {
-			return fmt.Errorf("can't find user %s in room ", req.Sender)
+			raw, _ := json.MarshalIndent(currentUser, "", "\t")
+			return fmt.Errorf("can't find user %s in out : %s", req.Sender, string(raw))
 		}
 
-		sinkMediaObject = &MediaObject{
-			Parent: currentRoom.MediaPipeline,
-			Type:   WebRtcEndpoint,
-		}
+		sinkMediaObject = connectorMedia.Point
 
-		err = s.cli.Create(ctx, sinkMediaObject)
-		if err != nil {
-			return err
-		}
 		sink := &struct {
 			Sink string `json:"sink"`
 		}{
-			Sink: sinkMediaObject.ID,
+			Sink: connectorMedia.Point.ID,
 		}
 
 		raw, err := json.Marshal(sink)
@@ -346,25 +422,170 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 			return err
 		}
 		payload := &json.RawMessage{}
-		payload2 := &json.RawMessage{}
 		_ = payload.UnmarshalJSON(raw)
-		_ = payload2.UnmarshalJSON(raw)
-		err = s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload)
+		connectEndpoints = func() error {
+			return s.cli.Invoke(ctx, connectorMedia.Source, ConnectInvokeOperation, payload)
+		}
+
+	} else if currentUser.name == req.Sender {
+		needNotification = true
+		// create webrtc endpoint
+
+		if currentUser.In.ID == "" {
+			err = s.cli.Create(ctx, currentUser.In)
+			if err != nil {
+				return err
+			}
+		}
+		sinkMediaObject = currentUser.In
+
+		for _, user := range currentRoom.ListUsers() {
+			if user.name == currentUser.name {
+				continue
+			}
+			sinkMediaObjectPoint := &MediaObject{
+				Parent: currentRoom.MediaPipeline,
+				Type:   WebRtcEndpoint,
+			}
+
+			err = s.cli.Create(ctx, sinkMediaObjectPoint)
+			if err != nil {
+				return err
+			}
+			sink := &struct {
+				Sink string `json:"sink"`
+			}{
+				Sink: sinkMediaObjectPoint.ID,
+			}
+
+			raw, err := json.Marshal(sink)
+			if err != nil {
+				return err
+			}
+			payload := &json.RawMessage{}
+
+			_ = payload.UnmarshalJSON(raw)
+			err = s.cli.Invoke(ctx, user.In, ConnectInvokeOperation, payload)
+			if err != nil {
+				return err
+			}
+			currentUser.lock.Lock()
+			currentUser.Out[user.name] = &MediaConnector{
+				Point:  sinkMediaObjectPoint,
+				Source: user.In,
+			}
+			currentUser.lock.Unlock()
+
+			// AND REVERT
+
+			currentUserMediaObjectPoint := &MediaObject{
+				Parent: currentRoom.MediaPipeline,
+				Type:   WebRtcEndpoint,
+			}
+
+			err = s.cli.Create(ctx, currentUserMediaObjectPoint)
+			if err != nil {
+				return err
+			}
+			sinkC := &struct {
+				Sink string `json:"sink"`
+			}{
+				Sink: currentUserMediaObjectPoint.ID,
+			}
+
+			rawC, err := json.Marshal(sinkC)
+			if err != nil {
+				return err
+			}
+			payloadC := &json.RawMessage{}
+
+			_ = payloadC.UnmarshalJSON(rawC)
+			err = s.cli.Invoke(ctx, currentUser.In, ConnectInvokeOperation, payloadC)
+			if err != nil {
+				return err
+			}
+			user.lock.Lock()
+			user.Out[currentUser.name] = &MediaConnector{
+				Point:  currentUserMediaObjectPoint,
+				Source: currentUser.In,
+			}
+			user.lock.Unlock()
+
+		}
+
+	} else {
+
+		currentUser.lock.Lock()
+		connectorMedia, ok := currentUser.Out[req.Sender]
+		currentUser.lock.Unlock()
+		if !ok {
+			raw, _ := json.MarshalIndent(currentUser, "", "\t")
+			return fmt.Errorf("can't find user %s in out : %s", req.Sender, string(raw))
+		}
+
+		sinkMediaObject = connectorMedia.Point
+
+		sink := &struct {
+			Sink string `json:"sink"`
+		}{
+			Sink: connectorMedia.Point.ID,
+		}
+
+		raw, err := json.Marshal(sink)
 		if err != nil {
 			return err
 		}
-
+		payload := &json.RawMessage{}
+		_ = payload.UnmarshalJSON(raw)
 		connectEndpoints = func() error {
-			return s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload2)
+			return s.cli.Invoke(ctx, connectorMedia.Source, ConnectInvokeOperation, payload)
 		}
 
-		currentUser.lock.Lock()
-		currentUser.Out[sourceUser.name] = &MediaConnector{
-			Point:  sinkMediaObject,
-			Source: sourceUser.In,
-		}
-		currentUser.lock.Unlock()
-		AnswerForUserName = sourceUser.name
+		//connectEndpoints()
+
+		/*
+			sinkMediaObject = &MediaObject{
+				Parent: currentRoom.MediaPipeline,
+				Type:   WebRtcEndpoint,
+			}
+
+			err = s.cli.Create(ctx, sinkMediaObject)
+			if err != nil {
+				return err
+			}
+			sink := &struct {
+				Sink string `json:"sink"`
+			}{
+				Sink: sinkMediaObject.ID,
+			}
+
+			raw, err := json.Marshal(sink)
+			if err != nil {
+				return err
+			}
+			payload := &json.RawMessage{}
+
+			payload2 := &json.RawMessage{}
+			_ = payload.UnmarshalJSON(raw)
+			_ = payload2.UnmarshalJSON(raw)
+			err = s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload2)
+			if err != nil {
+				return err
+			}
+
+			AnswerForUserName = sourceUser.name
+
+			//connectEndpoints = func() error {
+			//	return s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload)
+			//}
+
+			currentUser.lock.Lock()
+			currentUser.Out[sourceUser.name] = &MediaConnector{
+				Point:  sinkMediaObject,
+				Source: sourceUser.In,
+			}
+			currentUser.lock.Unlock()
+		*/
 	}
 
 	eventIceCandidateFound, err := s.cli.Subscribe(ctx, sinkMediaObject, IceCandidateFound)
@@ -397,7 +618,11 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 		return err
 	}
 
-	// return answer to client
+	err = connectEndpoints()
+	if err != nil {
+		return err
+	}
+
 	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
 	err = currentUser.wsConn.WriteJSON(&ReceiveVideoAnswerForm{
 		Cmd:       ReceiveVideoAnswerWsCmd,
@@ -408,9 +633,27 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 		return err
 	}
 
-	err = connectEndpoints()
-	if err != nil {
-		return err
+	if !needNotification {
+		ctxWithCancel, cancelSubscribeGatherDone := context.WithCancel(ctx)
+		gatherDone, err := s.cli.Subscribe(ctxWithCancel, sinkMediaObject, OnIceGatheringDone)
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			gather, ok := <-gatherDone
+			if !ok {
+				return
+			}
+			cancelSubscribeGatherDone()
+			log.Printf(`OnIceGatheringDone %s`, string(gather))
+			//connectEndpoints()
+			//currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+			//_ = currentUser.wsConn.WriteJSON(map[string]string{
+			//	"cmd":  "endpointWasConnected",
+			//	"name": AnswerForUserName,
+			//})
+		}()
 	}
 
 	// fire event!
@@ -426,7 +669,8 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 	// NOTIFICATION
 	// только после того как пользователь создал webrct создедиение - мы говорим что он есть
 	users := []string{}
-	for _, user := range currentRoom.Users {
+	//time.Sleep(100 * time.Millisecond)
+	for _, user := range currentRoom.ListUsers() {
 		if user.name == currentUser.name {
 			continue
 		}
@@ -450,6 +694,9 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 		Cmd:  ExistingParticipantsWsCmd,
 		Data: users,
 	})
+
+	return nil
+
 }
 
 /*
@@ -477,9 +724,9 @@ func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsReques
 		ok   bool
 	)
 
-	s.lock.RLock()
+	s.lock.Lock()
 	room, ok = s.rooms[req.Room]
-	s.lock.RUnlock()
+	s.lock.Unlock()
 
 	if !ok {
 		room = NewRoom()
@@ -500,7 +747,7 @@ func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsReques
 	}
 
 	// JOIN, BUT HIDE
-	currentUser.room = room
+	currentUser.roomName = req.Room
 	currentUser.name = req.User
 	currentUser.In = &MediaObject{
 		Parent: room.MediaPipeline,
@@ -508,6 +755,37 @@ func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsReques
 	}
 
 	room.AddUser(currentUser)
+
+	return nil
+
+	users := []string{}
+	for _, user := range room.ListUsers() {
+		if user.name == currentUser.name {
+			continue
+		}
+
+		/*
+			user.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+			err = user.wsConn.WriteJSON(&NewParticipantArrivedForm{
+				Cmd:  NewParticipantArrivedWsCmd,
+				Name: currentUser.name,
+			})
+			if err != nil {
+				continue
+			}
+		*/
+		if len(user.In.ID) != 0 {
+			users = append(users, user.name)
+		}
+	}
+
+	// и отправляем ему данные о других практикантах
+	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+	return currentUser.wsConn.WriteJSON(&ExistingParticipantsForm{
+		Cmd:  ExistingParticipantsWsCmd,
+		Data: users,
+	})
+
 	return nil
 }
 
@@ -567,9 +845,13 @@ type User struct {
 	// websocket
 	wsConn *websocket.Conn `json:"-"`
 	// in stream
-	In   *MediaObject               `json:"in"`
-	Out  map[string]*MediaConnector `json:"out"`
-	room *Room                      `json:"-"`
+	In       *MediaObject               `json:"in"`
+	Out      map[string]*MediaConnector `json:"out"`
+	roomName string                     `json:"-"`
+}
+
+func (u *User) IsEmptyIn() bool {
+	return len(u.In.ID) == 0
 }
 
 func NewRoom() *Room {
@@ -588,11 +870,11 @@ type Room struct {
 	Users map[string]*User `json:"users"`
 }
 
-func (r *Room) ListUsers() []string {
-	users := []string{}
+func (r *Room) ListUsers() []*User {
+	users := []*User{}
 	r.lock.RLock()
-	for name, _ := range r.Users {
-		users = append(users, name)
+	for _, u := range r.Users {
+		users = append(users, u)
 	}
 	r.lock.RUnlock()
 	return users

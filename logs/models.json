@@ -34,3 +34,68 @@
     }
   }
 }
+
+/*
+
+25.04.2017, 17:22:26
+createOffer
+25.04.2017, 17:22:26
+createOfferOnSuccess
+25.04.2017, 17:22:26
+setLocalDescription
+25.04.2017, 17:22:26
+signalingstatechange
+25.04.2017, 17:22:26	setLocalDescriptionOnSuccess
+25.04.2017, 17:22:26
+icegatheringstatechange
+25.04.2017, 17:22:26
+icecandidate (host)
+25.04.2017, 17:22:26
+icecandidate (host)
+25.04.2017, 17:22:26
+icecandidate (srflx)
+25.04.2017, 17:22:26
+icecandidate (srflx)
+25.04.2017, 17:22:26
+setRemoteDescription
+25.04.2017, 17:22:26
+signalingstatechange
+25.04.2017, 17:22:26
+iceconnectionstatechange
+25.04.2017, 17:22:26
+onAddStream
+25.04.2017, 17:22:26	setRemoteDescriptionOnSuccess
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+addIceCandidate (host)
+25.04.2017, 17:22:26
+icecandidate (host)
+25.04.2017, 17:22:26
+icegatheringstatechange
+25.04.2017, 17:22:27
+iceconnectionstatechange
+25.04.2017, 17:22:41
+iceconnectionstatechange
+
+*/
