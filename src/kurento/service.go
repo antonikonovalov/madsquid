@@ -104,8 +104,10 @@ const (
 	ReceiveVideoFromWsCmd      WsCmd = `receiveVideoFrom`
 	ReceiveVideoAnswerWsCmd    WsCmd = `receiveVideoAnswer`
 	NewParticipantArrivedWsCmd WsCmd = `newParticipantArrived`
+	ParticipantLeavedWsCmd     WsCmd = `participantLeaved`
 	OnIceCandidateWsCmd        WsCmd = `onIceCandidate`
 	IceCandidateWsCmd          WsCmd = `iceCandidate`
+	leaveWsCmd                 WsCmd = `leave`
 )
 
 type WsRequest struct {
@@ -210,6 +212,13 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}()
 
 	currentUser := NewUser("", wsConn, nil)
+
+	defer func(user *User) {
+		err = s.leave(context.Background(), currentUser)
+		if err != nil {
+			log.Printf(`can't correct leave current session of user %s(%s)': %s`, currentUser.name, currentUser.roomName, err)
+		}
+	}(currentUser)
 	for {
 
 		select {
@@ -233,6 +242,10 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				log.Print("started call onIceCandidate")
 				err = s.onIceCandidate(ctx, currentUser, wsReq)
 				log.Print("ended call onIceCandidate")
+			case leaveWsCmd:
+				log.Print("started call leaveWsCmd")
+				err = s.leave(ctx, currentUser)
+				log.Print("ended call leaveWsCmd")
 			}
 
 			// error processing
@@ -294,6 +307,49 @@ func (s *service) onIceCandidate(ctx context.Context, currentUser *User, req *Ws
 	return nil
 }
 
+type ParticipantLeavedForm struct {
+	Cmd  WsCmd  `json:"cmd"`
+	Name string `json:"name"`
+}
+
+func (s *service) leave(ctx context.Context, currentUser *User) error {
+	if currentUser == nil {
+		return fmt.Errorf("currentUser for req %s is nil for leave ")
+	}
+
+	s.lock.Lock()
+	currentRoom, ok := s.rooms[currentUser.roomName]
+	s.lock.Unlock()
+
+	var userName = currentUser.name
+	if !ok {
+		return fmt.Errorf("currentRoom %s for req %s is nil ", currentUser.roomName, "leave")
+	}
+	if !currentRoom.HasUser(userName) {
+		return nil
+	}
+
+	currentRoom.lock.Lock()
+
+	//remove self from room
+	delete(currentRoom.Users, userName)
+	for _, user := range currentRoom.Users {
+		user.lock.Lock()
+		delete(user.Out, userName)
+		user.lock.Unlock()
+		currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+		_ = currentUser.wsConn.WriteJSON(&ParticipantLeavedForm{
+			Cmd:  ParticipantLeavedWsCmd,
+			Name: userName,
+		})
+	}
+
+	currentRoom.lock.Unlock()
+
+	// TODO: release object
+	return nil
+}
+
 type IceCandidateAnswer struct {
 	Cmd       WsCmd            `json:"cmd"`
 	Name      string           `json:"name"`
@@ -318,274 +374,61 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 		sinkMediaObject   *MediaObject
 		needNotification  bool
 		AnswerForUserName = req.Sender
-		connectEndpoints  = func() error { return nil }
 	)
 
 	log.Printf("currentUser.name %s <=> %s", currentUser.name, req.Sender)
-	if currentUser.name != req.Sender && currentUser.IsEmptyIn() {
+	if currentUser.name == req.Sender {
+		needNotification = true
+
 		err = s.cli.Create(ctx, currentUser.In)
 		if err != nil {
 			return err
 		}
-
-		for _, user := range currentRoom.ListUsers() {
-			if user.name == currentUser.name {
-				continue
-			}
-			sinkMediaObjectPoint := &MediaObject{
-				Parent: currentRoom.MediaPipeline,
-				Type:   WebRtcEndpoint,
-			}
-
-			err = s.cli.Create(ctx, sinkMediaObjectPoint)
-			if err != nil {
-				return err
-			}
-			sink := &struct {
-				Sink string `json:"sink"`
-			}{
-				Sink: sinkMediaObjectPoint.ID,
-			}
-
-			raw, err := json.Marshal(sink)
-			if err != nil {
-				return err
-			}
-			payload := &json.RawMessage{}
-
-			_ = payload.UnmarshalJSON(raw)
-			err = s.cli.Invoke(ctx, user.In, ConnectInvokeOperation, payload)
-			if err != nil {
-				return err
-			}
-			currentUser.lock.Lock()
-			currentUser.Out[user.name] = &MediaConnector{
-				Point:  sinkMediaObjectPoint,
-				Source: user.In,
-			}
-			currentUser.lock.Unlock()
-
-			// AND REVERT
-
-			currentUserMediaObjectPoint := &MediaObject{
-				Parent: currentRoom.MediaPipeline,
-				Type:   WebRtcEndpoint,
-			}
-
-			err = s.cli.Create(ctx, currentUserMediaObjectPoint)
-			if err != nil {
-				return err
-			}
-			sinkC := &struct {
-				Sink string `json:"sink"`
-			}{
-				Sink: currentUserMediaObjectPoint.ID,
-			}
-
-			rawC, err := json.Marshal(sinkC)
-			if err != nil {
-				return err
-			}
-			payloadC := &json.RawMessage{}
-
-			_ = payloadC.UnmarshalJSON(rawC)
-			err = s.cli.Invoke(ctx, currentUser.In, ConnectInvokeOperation, payloadC)
-			if err != nil {
-				return err
-			}
-			user.lock.Lock()
-			user.Out[currentUser.name] = &MediaConnector{
-				Point:  currentUserMediaObjectPoint,
-				Source: currentUser.In,
-			}
-			user.lock.Unlock()
-		}
-
-		currentUser.lock.Lock()
-		connectorMedia, ok := currentUser.Out[req.Sender]
-		currentUser.lock.Unlock()
-		if !ok {
-			raw, _ := json.MarshalIndent(currentUser, "", "\t")
-			return fmt.Errorf("can't find user %s in out : %s", req.Sender, string(raw))
-		}
-
-		sinkMediaObject = connectorMedia.Point
-
-		sink := &struct {
-			Sink string `json:"sink"`
-		}{
-			Sink: connectorMedia.Point.ID,
-		}
-
-		raw, err := json.Marshal(sink)
-		if err != nil {
-			return err
-		}
-		payload := &json.RawMessage{}
-		_ = payload.UnmarshalJSON(raw)
-		connectEndpoints = func() error {
-			return s.cli.Invoke(ctx, connectorMedia.Source, ConnectInvokeOperation, payload)
-		}
-
-	} else if currentUser.name == req.Sender {
-		needNotification = true
-		// create webrtc endpoint
-
-		if currentUser.In.ID == "" {
-			err = s.cli.Create(ctx, currentUser.In)
-			if err != nil {
-				return err
-			}
-		}
 		sinkMediaObject = currentUser.In
 
-		for _, user := range currentRoom.ListUsers() {
-			if user.name == currentUser.name {
-				continue
-			}
-			sinkMediaObjectPoint := &MediaObject{
-				Parent: currentRoom.MediaPipeline,
-				Type:   WebRtcEndpoint,
-			}
-
-			err = s.cli.Create(ctx, sinkMediaObjectPoint)
-			if err != nil {
-				return err
-			}
-			sink := &struct {
-				Sink string `json:"sink"`
-			}{
-				Sink: sinkMediaObjectPoint.ID,
-			}
-
-			raw, err := json.Marshal(sink)
-			if err != nil {
-				return err
-			}
-			payload := &json.RawMessage{}
-
-			_ = payload.UnmarshalJSON(raw)
-			err = s.cli.Invoke(ctx, user.In, ConnectInvokeOperation, payload)
-			if err != nil {
-				return err
-			}
-			currentUser.lock.Lock()
-			currentUser.Out[user.name] = &MediaConnector{
-				Point:  sinkMediaObjectPoint,
-				Source: user.In,
-			}
-			currentUser.lock.Unlock()
-
-			// AND REVERT
-
-			currentUserMediaObjectPoint := &MediaObject{
-				Parent: currentRoom.MediaPipeline,
-				Type:   WebRtcEndpoint,
-			}
-
-			err = s.cli.Create(ctx, currentUserMediaObjectPoint)
-			if err != nil {
-				return err
-			}
-			sinkC := &struct {
-				Sink string `json:"sink"`
-			}{
-				Sink: currentUserMediaObjectPoint.ID,
-			}
-
-			rawC, err := json.Marshal(sinkC)
-			if err != nil {
-				return err
-			}
-			payloadC := &json.RawMessage{}
-
-			_ = payloadC.UnmarshalJSON(rawC)
-			err = s.cli.Invoke(ctx, currentUser.In, ConnectInvokeOperation, payloadC)
-			if err != nil {
-				return err
-			}
-			user.lock.Lock()
-			user.Out[currentUser.name] = &MediaConnector{
-				Point:  currentUserMediaObjectPoint,
-				Source: currentUser.In,
-			}
-			user.lock.Unlock()
-
-		}
-
 	} else {
-
-		currentUser.lock.Lock()
-		connectorMedia, ok := currentUser.Out[req.Sender]
-		currentUser.lock.Unlock()
+		currentRoom.lock.RLock()
+		sourceUser, ok := currentRoom.Users[req.Sender]
+		currentRoom.lock.RUnlock()
 		if !ok {
-			raw, _ := json.MarshalIndent(currentUser, "", "\t")
-			return fmt.Errorf("can't find user %s in out : %s", req.Sender, string(raw))
+			raw, _ := json.MarshalIndent(currentRoom, "", "\t")
+			return fmt.Errorf("can't find user %s in room : %s", req.Sender, string(raw))
 		}
 
-		sinkMediaObject = connectorMedia.Point
+		sinkMediaObject = &MediaObject{
+			Parent: currentRoom.MediaPipeline,
+			Type:   WebRtcEndpoint,
+		}
+
+		err = s.cli.Create(ctx, sinkMediaObject)
+		if err != nil {
+			return err
+		}
 
 		sink := &struct {
 			Sink string `json:"sink"`
 		}{
-			Sink: connectorMedia.Point.ID,
+			Sink: sinkMediaObject.ID,
 		}
 
 		raw, err := json.Marshal(sink)
 		if err != nil {
 			return err
 		}
+
 		payload := &json.RawMessage{}
 		_ = payload.UnmarshalJSON(raw)
-		connectEndpoints = func() error {
-			return s.cli.Invoke(ctx, connectorMedia.Source, ConnectInvokeOperation, payload)
+		err = s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload)
+		if err != nil {
+			return err
 		}
 
-		//connectEndpoints()
-
-		/*
-			sinkMediaObject = &MediaObject{
-				Parent: currentRoom.MediaPipeline,
-				Type:   WebRtcEndpoint,
-			}
-
-			err = s.cli.Create(ctx, sinkMediaObject)
-			if err != nil {
-				return err
-			}
-			sink := &struct {
-				Sink string `json:"sink"`
-			}{
-				Sink: sinkMediaObject.ID,
-			}
-
-			raw, err := json.Marshal(sink)
-			if err != nil {
-				return err
-			}
-			payload := &json.RawMessage{}
-
-			payload2 := &json.RawMessage{}
-			_ = payload.UnmarshalJSON(raw)
-			_ = payload2.UnmarshalJSON(raw)
-			err = s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload2)
-			if err != nil {
-				return err
-			}
-
-			AnswerForUserName = sourceUser.name
-
-			//connectEndpoints = func() error {
-			//	return s.cli.Invoke(ctx, sourceUser.In, ConnectInvokeOperation, payload)
-			//}
-
-			currentUser.lock.Lock()
-			currentUser.Out[sourceUser.name] = &MediaConnector{
-				Point:  sinkMediaObject,
-				Source: sourceUser.In,
-			}
-			currentUser.lock.Unlock()
-		*/
+		currentUser.lock.Lock()
+		currentUser.Out[sourceUser.name] = &MediaConnector{
+			Point:  sinkMediaObject,
+			Source: sourceUser.In,
+		}
+		currentUser.lock.Unlock()
 	}
 
 	eventIceCandidateFound, err := s.cli.Subscribe(ctx, sinkMediaObject, IceCandidateFound)
@@ -618,11 +461,6 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 		return err
 	}
 
-	err = connectEndpoints()
-	if err != nil {
-		return err
-	}
-
 	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
 	err = currentUser.wsConn.WriteJSON(&ReceiveVideoAnswerForm{
 		Cmd:       ReceiveVideoAnswerWsCmd,
@@ -631,29 +469,6 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 	})
 	if err != nil {
 		return err
-	}
-
-	if !needNotification {
-		ctxWithCancel, cancelSubscribeGatherDone := context.WithCancel(ctx)
-		gatherDone, err := s.cli.Subscribe(ctxWithCancel, sinkMediaObject, OnIceGatheringDone)
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			gather, ok := <-gatherDone
-			if !ok {
-				return
-			}
-			cancelSubscribeGatherDone()
-			log.Printf(`OnIceGatheringDone %s`, string(gather))
-			//connectEndpoints()
-			//currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-			//_ = currentUser.wsConn.WriteJSON(map[string]string{
-			//	"cmd":  "endpointWasConnected",
-			//	"name": AnswerForUserName,
-			//})
-		}()
 	}
 
 	// fire event!
@@ -696,26 +511,7 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 	})
 
 	return nil
-
 }
-
-/*
-2017/04/21 17:59:18 start processed receiveVideoFrom
-2017/04/21 17:59:18 started call receiveVideoFrom
-2017/04/21 17:59:18 kurentoClient: [613b3aa4-6832-43be-85d5-53a0fd7bd04a] started send &{2.0 613b3aa4-6832-43be-85d5-53a0fd7bd04a create 0xc420384120}
-2017/04/21 17:59:18 kurentoClient: [613b3aa4-6832-43be-85d5-53a0fd7bd04a] ended send %!s(<nil>)
-2017/04/21 17:59:18 kurentoClient: [613b3aa4-6832-43be-85d5-53a0fd7bd04a] ended read &{2.0 613b3aa4-6832-43be-85d5-53a0fd7bd04a %!s(*json.RawMessage=&[123 34 115 101 115 115 105 111 110 73 100 34 58 34 57 51 98 97 97 97 53 57 45 48 51 53 50 45 52 54 48 50 45 56 52 50 102 45 55 51 55 101 48 97 55 52 101 49 97 99 34 44 34 118 97 108 117 101 34 58 34 102 101 56 54 98 48 101 51 45 53 52 53 56 45 52 97 50 101 45 57 49 49 51 45 100 102 53 53 52 54 56 101 100 57 99 100 95 107 117 114 101 110 116 111 46 77 101 100 105 97 80 105 112 101 108 105 110 101 47 57 54 97 52 100 49 99 53 45 98 99 97 54 45 52 52 53 100 45 56 100 97 99 45 99 54 52 57 55 49 53 50 53 56 51 48 95 107 117 114 101 110 116 111 46 87 101 98 82 116 99 69 110 100 112 111 105 110 116 34 125]) <nil>  %!s(*struct { Value struct { Data *json.RawMessage "json:\"data\""; Object string "json:\"object\""; Type kurento.SubscribeTopic "json:\"type\"" } "json:\"value\"" }=<nil>)}, %!s(<nil>)
-2017/04/21 17:59:18 kurentoClient: [613b3aa4-6832-43be-85d5-53a0fd7bd04a] ended read PUT_ANSWER
-2017/04/21 17:59:18 kurentoClient: started read
-2017/04/21 17:59:18 kurentoClient: [e99e6a50-9003-4a8c-9ced-81a3783204d0] started send &{2.0 e99e6a50-9003-4a8c-9ced-81a3783204d0 invoke 0xc4200fa9c0}
-2017/04/21 17:59:18 kurentoClient: [e99e6a50-9003-4a8c-9ced-81a3783204d0] ended send %!s(<nil>)
-2017/04/21 17:59:18 kurentoClient: [e99e6a50-9003-4a8c-9ced-81a3783204d0] ended read &{2.0 e99e6a50-9003-4a8c-9ced-81a3783204d0 %!s(*json.RawMessage=<nil>) [40101] Object '' not found : &{"type":"MEDIA_OBJECT_NOT_FOUND"}  %!s(*struct { Value struct { Data *json.RawMessage "json:\"data\""; Object string "json:\"object\""; Type kurento.SubscribeTopic "json:\"type\"" } "json:\"value\"" }=<nil>)}, %!s(<nil>)
-2017/04/21 17:59:18 kurentoClient: [e99e6a50-9003-4a8c-9ced-81a3783204d0] ended read PUT_ANSWER
-2017/04/21 17:59:18 kurentoClient: started read
-2017/04/21 17:59:18 ended call receiveVideoFrom
-2017/04/21 17:59:18 cmd:receiveVideoFrom: err: [40101] Object '' not found : &{"type":"MEDIA_OBJECT_NOT_FOUND"}
-
-*/
 
 func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsRequest) error {
 	var (
@@ -755,36 +551,6 @@ func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsReques
 	}
 
 	room.AddUser(currentUser)
-
-	return nil
-
-	users := []string{}
-	for _, user := range room.ListUsers() {
-		if user.name == currentUser.name {
-			continue
-		}
-
-		/*
-			user.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-			err = user.wsConn.WriteJSON(&NewParticipantArrivedForm{
-				Cmd:  NewParticipantArrivedWsCmd,
-				Name: currentUser.name,
-			})
-			if err != nil {
-				continue
-			}
-		*/
-		if len(user.In.ID) != 0 {
-			users = append(users, user.name)
-		}
-	}
-
-	// и отправляем ему данные о других практикантах
-	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-	return currentUser.wsConn.WriteJSON(&ExistingParticipantsForm{
-		Cmd:  ExistingParticipantsWsCmd,
-		Data: users,
-	})
 
 	return nil
 }

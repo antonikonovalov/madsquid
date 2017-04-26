@@ -8,13 +8,16 @@ var videoCodec = "vp8"
 var firstPage = document.getElementById('first-page');
 var roomPage = document.getElementById('room-page');
 var joinButton = document.getElementById('joinButton');
-//var stopButton = document.getElementById('stopButton');
+var leaveButton = document.getElementById('leaveButton');
 //var testButton = document.getElementById('testButton');
 joinButton.disabled = false;
+leaveButton.disabled = true;
+leaveButton.disabled = true;
 //stopButton.disabled = true
 //testButton.disabled = true
 
 joinButton.onclick = join;
+leaveButton.onclick = leave;
 /*
 stopButton.onclick = stop;
 testButton.onclick = test;
@@ -100,10 +103,32 @@ function join() {
             });
             firstPage.style.display = "none";
             roomPage.style.display = "block";
+            leaveButton.style.display = "block";
+            leaveButton.disabled = false;
             callTo(userNameInput.value);
         }
     );
 
+}
+
+function leave() {
+    userNameInput.disabled = false;
+    roomNameInput.disabled = false;
+    joinButton.disabled = true;
+
+    firstPage.style.display = "block";
+    roomPage.style.display = "none";
+
+    Object.keys(pcs).map(function(key, ind){
+        if (pcs[key].signalingState!="closed") {
+            pcs[key].getLocalStreams().forEach(function(s) {
+                s.getTracks().forEach(function(t) {t.stop()});
+            });
+           // pcs[key].close();
+        }
+    });
+
+    signalingChannel.send({cmd:"leave"});
 }
 
 function stop() {
@@ -147,7 +172,7 @@ function SignalingChannel() {
 	this.start = function(cb) {
         this.socket = new WebSocket("wss://"+window.location.host+"/kurento");
         this.socket.onopen = function() {
-             cb();
+            cb();
             console.log("websocket connected");
         };
         this.socket.onclose = function(event) {
@@ -205,22 +230,6 @@ function SignalingChannel() {
 
 var sendOfferCfg = {offerToReceiveVideo: -1, offerToReceiveAudio: -1, voiceActivityDetection: true, iceRestart: false};
 var recvOfferCfg = {offerToReceiveVideo: 1, offerToReceiveAudio: 1, voiceActivityDetection: true, iceRestart: false};
-    // {
-    //     offerToReceiveAudio: {
-    //         exact: 1
-    //     },
-    //     offerToReceiveVideo:
-    //         {
-    //             exact: 1
-    //         },
-    //     advanced: [
-    //         {
-    //             enableDtlsSrtp: {
-    //                 exact: true
-    //             }
-    //         }
-    //     ]
-    // };
 
 function newPC(callee) {
 
@@ -259,9 +268,7 @@ function newPC(callee) {
         console.log('received remote stream');
         if (callee != userNameInput.value) {
             var remoteVideo = document.getElementById(callee);
-            // remoteVideo.pause();
             remoteVideo.srcObject = e.stream;
-            // remoteVideo.load();
         }
     };
 
@@ -285,7 +292,13 @@ function callTo(user) {
         }).catch(logError);
     } else {
         // get a local stream, show it in a self-view and add it to be sent
-        navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function (stream) {
+        navigator.mediaDevices.getUserMedia({video : {
+            mandatory : {
+                maxWidth : 320,
+                maxFrameRate : 15,
+                minFrameRate : 15
+            }
+        }, audio: true}).then(function (stream) {
                 gotStream(stream);
                 pc.addStream(stream);
         }).catch(logError);
@@ -319,8 +332,17 @@ function parseMsg(msg) {
             pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(logError);
             break;
 
-        case  'endpointWasConnected':
+        case  'participantLeaved':
+            var pc = pcs[data.name];
 
+            pc.getLocalStreams().forEach(function(s) {
+                s.getTracks().forEach(function(t) {t.stop()});
+            });
+            pc.close();
+            delete pcs[data.name];
+
+            var video = document.getElementById(u);
+            video.remove();
 
             /*
             if (data.name==userNameInput.value) return;
@@ -354,7 +376,9 @@ function parseMsg(msg) {
                 link.className = 'video-label';
                 link.innerHTML = '<b> call '+data.name+'</b>';
                 link.onclick = function() {
-                    callTo(data.name);
+                    if (pcs[data.name] == null) {
+                        callTo(data.name);
+                    }
                     return false;
                 };
                 container.appendChild(link);
@@ -385,7 +409,9 @@ function parseMsg(msg) {
                     link.className = 'video-label';
                     link.innerHTML = '<b> call to '+u+'</b>';
                     link.onclick = function() {
-                        callTo(u);
+                        if (pcs[u] == null) {
+                            callTo(u);
+                        }
                         return false;
                     }
                     container.appendChild(link);
