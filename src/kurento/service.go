@@ -389,10 +389,12 @@ func (s *service) leave(ctx context.Context, currentUser *User) error {
 		}
 		// точки нет , но нужно донести на UI
 		user.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+		user.lock.Lock()
 		_ = user.wsConn.WriteJSON(&ParticipantLeavedForm{
 			Cmd:  ParticipantLeavedWsCmd,
 			Name: userName,
 		})
+		user.lock.Unlock()
 	}
 
 	if len(currentRoom.Users) == 0 {
@@ -507,7 +509,9 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 			answer.Cmd = IceCandidateWsCmd
 			answer.Name = AnswerForUserName
 			currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+			currentUser.lock.Lock()
 			_ = currentUser.wsConn.WriteJSON(answer)
+			currentUser.lock.Unlock()
 		}
 	}()
 
@@ -525,11 +529,13 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 	}
 
 	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+	currentUser.lock.Lock()
 	err = currentUser.wsConn.WriteJSON(&ReceiveVideoAnswerForm{
 		Cmd:       ReceiveVideoAnswerWsCmd,
 		Name:      AnswerForUserName,
 		SdpAnswer: payload,
 	})
+	currentUser.lock.Unlock()
 	if err != nil {
 		return err
 	}
@@ -554,10 +560,12 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 		}
 
 		user.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+		user.lock.Lock()
 		err = user.wsConn.WriteJSON(&NewParticipantArrivedForm{
 			Cmd:  NewParticipantArrivedWsCmd,
 			Name: currentUser.name,
 		})
+		user.lock.Unlock()
 		if err != nil {
 			continue
 		}
@@ -568,12 +576,14 @@ func (s *service) receiveVideoFrom(ctx context.Context, currentUser *User, req *
 
 	// и отправляем ему данные о других практикантах
 	currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-	return currentUser.wsConn.WriteJSON(&ExistingParticipantsForm{
+	currentUser.lock.Lock()
+	err = currentUser.wsConn.WriteJSON(&ExistingParticipantsForm{
 		Cmd:  ExistingParticipantsWsCmd,
 		Data: users,
 	})
+	currentUser.lock.Unlock()
 
-	return nil
+	return err
 }
 
 func (s *service) joinRoom(ctx context.Context, currentUser *User, req *WsRequest) error {
