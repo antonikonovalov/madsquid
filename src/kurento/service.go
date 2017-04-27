@@ -108,6 +108,7 @@ const (
 	OnIceCandidateWsCmd        WsCmd = `onIceCandidate`
 	IceCandidateWsCmd          WsCmd = `iceCandidate`
 	leaveWsCmd                 WsCmd = `leave`
+	hangupWsCmd                WsCmd = `hangup`
 )
 
 type WsRequest struct {
@@ -214,7 +215,7 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	currentUser := NewUser("", wsConn, nil)
 
 	defer func(user *User) {
-		err = s.leave(context.Background(), currentUser)
+		err = s.leave(context.Background(), user)
 		if err != nil {
 			log.Printf(`can't correct leave current session of user %s(%s)': %s`, currentUser.name, currentUser.roomName, err)
 		}
@@ -246,6 +247,10 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				log.Print("started call leaveWsCmd")
 				err = s.leave(ctx, currentUser)
 				log.Print("ended call leaveWsCmd")
+			case hangupWsCmd:
+				log.Print("started call hangupWsCmd")
+				err = s.hangUp(ctx, currentUser, wsReq)
+				log.Print("ended call hangupWsCmd")
 			}
 
 			// error processing
@@ -265,6 +270,28 @@ func (s *service) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+func (s *service) hangUp(ctx context.Context, currentUser *User, req *WsRequest) error {
+	currentUser.lock.RLock()
+	connector, ok := currentUser.Out[req.Sender]
+	currentUser.lock.RUnlock()
+
+	if !ok {
+		return nil
+	}
+
+	// удаяем точку выхода этого пользователя для себя
+	err := s.cli.Release(ctx, connector.Point)
+	if err != nil {
+		return err
+	}
+
+	currentUser.lock.Lock()
+	delete(currentUser.Out, req.Sender)
+	currentUser.lock.Unlock()
+
+	return nil
 }
 
 type ExistingParticipantsForm struct {
@@ -329,24 +356,60 @@ func (s *service) leave(ctx context.Context, currentUser *User) error {
 		return nil
 	}
 
+	var removeRoomNeeded = false
 	currentRoom.lock.Lock()
-
-	//remove self from room
 	delete(currentRoom.Users, userName)
+	err := s.cli.Release(ctx, currentUser.In)
+	if err != nil {
+		log.Printf("ERR: can't release object %s", currentUser.In.ID)
+	}
+
+	// удаляем видео которе стримят к нашему пользователю другие пользователи
+	for _, connector := range currentUser.Out {
+		err := s.cli.Release(ctx, connector.Point)
+		if err != nil {
+			log.Printf("ERR: can't release object %s", connector.Point.ID)
+		}
+	}
+	// удалем видео нашего пользователя которое стримется другим пользователям
 	for _, user := range currentRoom.Users {
-		user.lock.Lock()
-		delete(user.Out, userName)
-		user.lock.Unlock()
-		currentUser.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
-		_ = currentUser.wsConn.WriteJSON(&ParticipantLeavedForm{
+		user.lock.RLock()
+		connectToUser, ok := user.Out[userName]
+		user.lock.RUnlock()
+
+		if ok {
+			err := s.cli.Release(ctx, connectToUser.Point)
+			if err != nil {
+				log.Printf("ERR: can't release object %s", connectToUser.Point.ID)
+			}
+
+			user.lock.Lock()
+			delete(user.Out, userName)
+			user.lock.Unlock()
+		}
+		// точки нет , но нужно донести на UI
+		user.wsConn.SetWriteDeadline(time.Now().Add(writeWait))
+		_ = user.wsConn.WriteJSON(&ParticipantLeavedForm{
 			Cmd:  ParticipantLeavedWsCmd,
 			Name: userName,
 		})
 	}
 
+	if len(currentRoom.Users) == 0 {
+		removeRoomNeeded = true
+	}
 	currentRoom.lock.Unlock()
 
-	// TODO: release object
+	if removeRoomNeeded {
+		err := s.cli.Release(ctx, currentRoom.MediaPipeline)
+		if err != nil {
+			log.Printf("ERR: can't release object %s", currentRoom.MediaPipeline.ID)
+		}
+		s.lock.Lock()
+		delete(s.rooms, currentUser.roomName)
+		s.lock.Unlock()
+	}
+
 	return nil
 }
 

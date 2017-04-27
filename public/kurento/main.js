@@ -24,6 +24,7 @@ testButton.onclick = test;
 */
 
 var localVideo = document.getElementById('localVideo');
+var title = document.getElementById('titleRoom');
 
 var userNameInput = document.getElementById('userName');
 var roomNameInput = document.getElementById('roomName');
@@ -101,6 +102,7 @@ function join() {
                 room: roomNameInput.value,
                 user: userNameInput.value
             });
+            title.innerText = 'room: '+roomNameInput.value + ', user: '+userNameInput.value;
             firstPage.style.display = "none";
             roomPage.style.display = "block";
             leaveButton.style.display = "block";
@@ -112,61 +114,28 @@ function join() {
 }
 
 function leave() {
-    userNameInput.disabled = false;
-    roomNameInput.disabled = false;
-    joinButton.disabled = true;
 
-    firstPage.style.display = "block";
-    roomPage.style.display = "none";
+
 
     Object.keys(pcs).map(function(key, ind){
-        if (pcs[key].signalingState!="closed") {
-            pcs[key].getLocalStreams().forEach(function(s) {
-                s.getTracks().forEach(function(t) {t.stop()});
-            });
-           // pcs[key].close();
+        stopPC(key);
+        if (key  !=  userNameInput.value) {
+            document.getElementById('container-' + key).remove();
         }
     });
 
     signalingChannel.send({cmd:"leave"});
-}
 
-function stop() {
     userNameInput.disabled = false;
     roomNameInput.disabled = false;
     joinButton.disabled = false;
- //   stopButton.disabled = true;
-  //  testButton.disabled = true;
-
-    usersDiv.innerHTML = '';
-
-    localVideo.srcObject = null;
-    signalingChannel.stop();
-
-    Object.keys(pcs).map(function(key, ind){
-        if (pcs[key].signalingState!="closed") {
-            pcs[key].getLocalStreams().forEach(function(s) {
-                s.getTracks().forEach(function(t) {t.stop()});
-            });
-            pcs[key].close();
-        }
-    });
 
     firstPage.style.display = "block";
     roomPage.style.display = "none";
+
     localStream = null;
 }
 
-function test() {
-    testButton.disabled = true;
-
-    var elems = Array.from(document.getElementsByClassName("video-label"));
-    elems.forEach(function(elem, index){
-        setTimeout(function(){elem.click();}, 60*1000*index+Math.log(index+1));
-    });
-
-    setTimeout(function(){stopButton.click(); setTimeout(function(){alert("FINISHED");}, 1);}, 60*1000*elems.length+Math.log(elems.length));
-}
 
 function SignalingChannel() {
 	this.start = function(cb) {
@@ -272,6 +241,13 @@ function newPC(callee) {
         }
     };
 
+    pc.onclose = function () {
+        if (callee != userNameInput.value) {
+            var remoteVideo = document.getElementById('container-'+callee);
+            if (remoteVideo != null) remoteVideo.remove();
+        }
+    };
+
     pcs[callee] = pc;
 
     return pc;
@@ -312,7 +288,7 @@ function parseMsg(msg) {
 
     if (data.error !== undefined) {
         console.error(data);
-        return stop();
+        return leave();
     }
 
     if (data.cmd === undefined) return;
@@ -322,8 +298,7 @@ function parseMsg(msg) {
         case 'receiveVideoAnswer':
             console.log('answer received');
             var pc = pcs[data.name];
-            pc.setRemoteDescription(new RTCSessionDescription({"type":"answer","sdp":data.sdpAnswer}))
-                .catch(logError);
+            pc.setRemoteDescription(new RTCSessionDescription({"type":"answer","sdp":data.sdpAnswer})).catch(logError);
             break;
 
         case 'iceCandidate':
@@ -333,29 +308,10 @@ function parseMsg(msg) {
             break;
 
         case  'participantLeaved':
-            var pc = pcs[data.name];
+            var video = document.getElementById('container-'+data.name);
+            stopPC(data.name);
 
-            pc.getLocalStreams().forEach(function(s) {
-                s.getTracks().forEach(function(t) {t.stop()});
-            });
-            pc.close();
-            delete pcs[data.name];
-
-            var video = document.getElementById(u);
-            video.remove();
-
-            /*
-            if (data.name==userNameInput.value) return;
-            pc = pcs[data.name];
-            if (!!pc.restarted) return;
-            var videotag = document.getElementById(data.name);
-            console.log('endpointWasConnected',"YO!");
-            callTo(data.name);
-
-            pc.restarted = true;
-            videotag.pause();
-            videotag.load();
-            */
+            if (video != null) video.remove();
             break;
 
         case 'newParticipantArrived':
@@ -365,25 +321,7 @@ function parseMsg(msg) {
 
             console.log("videotag", videotag);
             if (videotag === null) {
-                var container = document.createElement('div');
-                container.className = "container";
-                var video = document.createElement('video');
-                video.id = data.name;
-                video.autoplay = true;
-                container.appendChild(video);
-                var link = document.createElement('a');
-                link.href = '#';
-                link.className = 'video-label';
-                link.innerHTML = '<b> call '+data.name+'</b>';
-                link.onclick = function() {
-                    if (pcs[data.name] == null) {
-                        callTo(data.name);
-                    }
-                    return false;
-                };
-                container.appendChild(link);
-
-                usersDiv.appendChild(container);
+                CreateVideo(data.name);
             }
             break;
 
@@ -398,54 +336,97 @@ function parseMsg(msg) {
                 var videotag = document.getElementById(u);
                 console.log("videotag", videotag);
                 if (videotag === null) {
-                    var container = document.createElement('div');
-                    container.className = "container";
-                    var video = document.createElement('video');
-                    video.id = u;
-                    video.autoplay = true;
-                    container.appendChild(video);
-                    var link = document.createElement('a');
-                    link.href = '#';
-                    link.className = 'video-label';
-                    link.innerHTML = '<b> call to '+u+'</b>';
-                    link.onclick = function() {
-                        if (pcs[u] == null) {
-                            callTo(u);
-                        }
-                        return false;
-                    }
-                    container.appendChild(link);
-
-                    usersDiv.appendChild(container);
+                    CreateVideo(u);
                 }
             });
-
-
-            /*
-            Object.keys(pcs).map(function(key, ind){
-                if (pcs[key].signalingState =="closed") {
-                    delete pcs[key];
-                } else if (pcs[key].signalingState !="closed" && !data.data.includes(key)) {
-                    pcs[key].getLocalStreams().forEach(function(s) {
-                        s.getTracks().forEach(function(t) {t.stop()});
-                    });
-                    pcs[key].close();
-                    delete pcs[key];
-                }
-            });
-
-            Array.from(document.getElementsByClassName("container")).forEach(function(cont){
-                if (!data.data.includes(cont.getElementsByTagName("video")[0].id)){
-                    cont.parentNode.removeChild(cont);
-                }
-            });
-            */
 
             break;
     }
 
     return;
 
+}
+
+function CreateVideo(u) {
+    var container = document.createElement('div');
+    container.id = 'container-'+u;
+    container.className = "container";
+    var video = document.createElement('video');
+    video.id = u;
+    video.autoplay = true;
+    container.appendChild(video);
+    var link = document.createElement('a');
+    link.href = '#';
+    link.className = 'video-label';
+    link.innerHTML = '<b> call to '+u+'</b>';
+    var linkClick = false;
+    link.onclick = function(e) {
+        e.preventDefault();
+        linkClick = true;
+
+        if (pcs[u] == null) {
+            callTo(u);
+            link.innerHTML = '<b> hang up '+u+'</b>';
+        } else {
+            stopPC(u);
+            signalingChannel.send({cmd:"hangup",sender: u});
+            link.innerHTML = '<b> call '+u+'</b>';
+        }
+        return false;
+    };
+    container.appendChild(link);
+
+    container.onclick = function (e) {
+        e.preventDefault();
+
+        if (linkClick) {
+            linkClick = false;
+            return false;
+        }
+
+        if (container.style.width === "100%") {
+            container.style.margin = "5%";
+            container.style.width = "";
+            video.style.width = "";
+            video.style.height = "";
+        } else {
+            container.style.margin = "0%";
+            container.style.width = "100%";
+            video.style.width = "100%";
+            video.style.height = "100%";
+        }
+        return false;
+    };
+
+    usersDiv.appendChild(container);
+}
+
+function stopPC(callee) {
+    var pc = pcs[callee];
+    if (pc == null) return;
+
+    if (pc.signalingState =="closed") {
+        delete pcs[callee];
+    } else {
+        pc.getRemoteStreams().forEach(function(s) {
+            s.getTracks().forEach(function(t) {
+                t.stop();
+                s.removeTrack(t);
+            });
+            pc.removeStream(s);
+        });
+
+        pc.getLocalStreams().forEach(function(s) {
+            s.getTracks().forEach(function(t) {
+                t.stop();
+                s.removeTrack(t);
+            });
+            pc.removeStream(s);
+        });
+
+        pc.close();
+        delete pcs[callee];
+    }
 }
 
 function logError(error) {

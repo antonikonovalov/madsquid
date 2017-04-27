@@ -13,18 +13,19 @@ likeform {
 
 video {
     background: #222;
-    width: 400px;
-    height: 300px;
+    /*width: 50%;*/
+    /*height: 240px;*/
 }
 
 .video-label{
     color: fuchsia;
     position: absolute;
-    left: 10;
+    left: 10px;
 }
 
 .container{
-	float: left;
+    margin: 5%;
+    float: left;
 	position: relative;
 	display: block;
 }

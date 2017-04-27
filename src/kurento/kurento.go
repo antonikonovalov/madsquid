@@ -159,7 +159,7 @@ type Kurento interface {
 	Subscribe(ctx context.Context, obj *MediaObject, topic SubscribeTopic) (<-chan []byte, error)
 	// unsubscribe: Removes an existing subscription to an event.
 	// release: Deletes the object and release resources used by it.
-
+	Release(ctx context.Context, obj *MediaObject) error
 	//The Kurento Protocol allows to Kurento Media Server send requests to clients:
 	//onEvent: This request is sent from Kurento Media server to clients when an event occurs.
 	Close() error
@@ -534,6 +534,41 @@ func (k *kurentoClient) unsubscribe(ctx context.Context, obj *MediaObject, subsc
 		}
 	}
 
+	return nil
+}
+
+func (k *kurentoClient) Release(ctx context.Context, obj *MediaObject) error {
+	params := &struct {
+		Object    string `json:"object"`
+		SessionID string `json:"sessionId"`
+	}{
+		Object:    obj.ID,
+		SessionID: k.sessionID,
+	}
+
+	out, done, err := k.send(newRequest(`release`, params))
+	if err != nil {
+		return err
+	}
+	defer done()
+	select {
+	case <-k.cctx.Done():
+		return k.cctx.Err()
+	case <-ctx.Done():
+		return ctx.Err()
+	case resp := <-out:
+		if resp.Error != nil {
+			return resp.Err()
+		}
+		result := &struct {
+			SessionID string `json:"sessionId"`
+		}{}
+		err = json.Unmarshal(*resp.Result, result)
+		if err != nil {
+			return err
+		}
+		k.sessionID = result.SessionID
+	}
 	return nil
 }
 

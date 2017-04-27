@@ -17,16 +17,16 @@
 <div id="room-page">
 	<div class="likeform">
 		<button id="leaveButton" style="display: none">Leave</button>
-		Local video:<br>
-    	<video id="localVideo" autoplay muted></video><br>
-    	<input type="checkbox" id="videoCheckbox" value="1" checked> video
-    	<input type="checkbox" id="audioCheckbox" value="1" checked> audio
-		<input type="checkbox" id="upstreamCheckbox" value="1">  upstream
 	</div>
 	<div class="likeform">
-		<h3>Calling</h3>
-		<div>Remote sessions:</div>
-		<div id="users"></div>
+		<h3 id="titleRoom"></h3>
+		<div id="users">
+            <div id="container-localVideo" class="container">
+                <video id="localVideo" autoplay muted></video><br>
+                <input type="checkbox" id="videoCheckbox" value="1" checked> video
+                <input type="checkbox" id="audioCheckbox" value="1" checked> audio
+            </div>
+        </div>
 	</div>
 </div>
 
