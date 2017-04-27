@@ -12,17 +12,30 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
+	kurentows "kurento/websocket"
+	"net/http"
 )
 
 var addr = flag.String(`kurento.addr`, `ws://localhost:8888/kurento`, `set your kurento media server WS endpoint`)
 
 func New(ctx context.Context) (Kurento, error) {
-	c, _, err := websocket.DefaultDialer.Dial(*addr, nil)
-	if err != nil {
-		return nil, err
+
+	dial := func() (kurentows.WebSocketer, *http.Response, error) {
+		log.Printf(`dialing to %s`, *addr)
+		ws, resp, err := websocket.DefaultDialer.Dial(*addr, nil)
+		if err != nil {
+			log.Printf(`dialing to %s ended with error => %s`, *addr, err)
+		}
+		return ws, resp, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
+
+	// инициализируем ws-слушателя со стороны бэка
+	c, err := kurentows.NewWsListener(ctx, kurentows.NewReconn(nil, dial))
+	if err != nil {
+		return nil, err
+	}
 
 	//configure connection here
 	cli := &kurentoClient{
@@ -216,7 +229,7 @@ func (a *response) Err() error {
 
 type kurentoClient struct {
 	cctx      context.Context
-	ws        *websocket.Conn
+	ws        *kurentows.WsListener
 	sessionID string
 
 	queueLock sync.RWMutex
@@ -248,21 +261,35 @@ func (k *kurentoClient) pinger(ctx context.Context) {
 }
 
 func (k *kurentoClient) loop() error {
+	var msg []byte
+	var online bool
 	for {
+
 		select {
 		case <-k.cctx.Done():
 			log.Print("kurentoClient: loop was done: %s", k.cctx.Err())
 			return k.cctx.Err()
-		default:
+		case online = <-k.ws.Status():
+			if !online {
+				//log.Printf(`server listened on %s was disconnected`, *addr)
+				//log.Printf(`reconnect after %s`, kurentows.RECONNECT_TIMEOUT)
+				time.Sleep(kurentows.RECONNECT_TIMEOUT)
+				k.ws.Reconnect() // единичная попытка реконнекта
+				// если попытка закончилась неуспешно
+				// backListener.Status() вернет false из канала
+				// если все хорошо
+				// backListener.Status() вернет true из канала
+			} else {
+				//log.Printf(`reconnect to %s succeeded`, *addr)
+			}
+			continue
+		case msg = <-k.ws.Read():
 		}
 
 		resp := &response{}
-		//k.ws.SetReadLimit(maxMessageSize)
-		//k.ws.SetReadDeadline(time.Now().Add(pongWait))
 
 		log.Print("kurentoClient: started read")
-
-		err := k.ws.ReadJSON(resp)
+		err := json.Unmarshal(msg, resp)
 		if err != nil {
 			log.Printf("kurentoClient: read error: %s", err)
 		}
@@ -303,16 +330,16 @@ func newRequest(method string, p interface{}) *request {
 	}
 }
 
-var lockSender = &sync.Mutex{}
-
 func (k *kurentoClient) send(req *request) (chan *response, func(), error) {
 	queueName := req.ID
 
-	//	k.ws.SetWriteDeadline(time.Now().Add(writeWait))
 	log.Printf("kurentoClient: [%s] started send %v", req.ID, req)
-	lockSender.Lock()
-	err := k.ws.WriteJSON(req)
-	lockSender.Unlock()
+	msg, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	k.ws.Write(msg)
 
 	if err != nil {
 		log.Printf("kurentoClient: [%s] started send err %s", req.ID, err)

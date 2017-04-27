@@ -5,6 +5,9 @@ var signalingMethod = "websocket"; // websocket | post
 var audioCodec = "opus"
 var videoCodec = "vp8"
 
+var autoCallCheckbox = document.getElementById('autoCallCheckbox');
+
+
 var firstPage = document.getElementById('first-page');
 var roomPage = document.getElementById('room-page');
 var joinButton = document.getElementById('joinButton');
@@ -46,10 +49,39 @@ function inputChanges(evt) {
     joinButton.disabled = !(userNameInput.value||roomNameInput.value);
 }
 
+
+
 var pcs = {};
 var callee;
 var localStream;
 var signalingChannel = new SignalingChannel();
+
+//connect to websocket
+signalingChannel.start();
+
+
+var queue = {};
+var queueRunner = {};
+
+function putToQueue(callee, data) {
+    var q = queue[callee] || new Array();
+    if (!queueRunner[callee]) {
+        q.push(data);
+    } else {
+        signalingChannel.send(data);
+    }
+}
+
+function runQueue(callee) {
+    var q = queue[callee];
+    queueRunner[callee] = true;
+    if (!q) return;
+
+    q.forEach(function(data){
+        signalingChannel.send(data);
+    });
+}
+
 
 function trackOptions() {
     return {
@@ -94,22 +126,18 @@ function join() {
 
     localVideo.id = userNameInput.value;
 
+    signalingChannel.send({
+        cmd:"joinRoom",
+        room: roomNameInput.value,
+        user: userNameInput.value
+    });
+    title.innerText = 'room: '+roomNameInput.value + ', user: '+userNameInput.value;
+    firstPage.style.display = "none";
+    roomPage.style.display = "block";
+    leaveButton.style.display = "block";
+    leaveButton.disabled = false;
+    callTo(userNameInput.value);
 
-    signalingChannel.start(
-        function () {
-            signalingChannel.send({
-                cmd:"joinRoom",
-                room: roomNameInput.value,
-                user: userNameInput.value
-            });
-            title.innerText = 'room: '+roomNameInput.value + ', user: '+userNameInput.value;
-            firstPage.style.display = "none";
-            roomPage.style.display = "block";
-            leaveButton.style.display = "block";
-            leaveButton.disabled = false;
-            callTo(userNameInput.value);
-        }
-    );
 
 }
 
@@ -138,10 +166,9 @@ function leave() {
 
 
 function SignalingChannel() {
-	this.start = function(cb) {
+	this.start = function() {
         this.socket = new WebSocket("wss://"+window.location.host+"/kurento");
         this.socket.onopen = function() {
-            cb();
             console.log("websocket connected");
         };
         this.socket.onclose = function(event) {
@@ -298,6 +325,7 @@ function parseMsg(msg) {
         case 'receiveVideoAnswer':
             console.log('answer received');
             var pc = pcs[data.name];
+            runQueue(data.name);
             pc.setRemoteDescription(new RTCSessionDescription({"type":"answer","sdp":data.sdpAnswer})).catch(logError);
             break;
 
@@ -346,6 +374,9 @@ function parseMsg(msg) {
     return;
 
 }
+
+var delay = 1000;
+var timeout = 0;
 
 function CreateVideo(u) {
     var container = document.createElement('div');
@@ -399,6 +430,16 @@ function CreateVideo(u) {
     };
 
     usersDiv.appendChild(container);
+
+    if (!!autoCallCheckbox.value) {
+        timeout += delay;
+        link.innerHTML = '<b>Calling '+u+'...</b>';
+        setTimeout(function () {
+            callTo(u);
+            link.innerHTML = '<b> hang up '+u+'</b>';
+            timeout -= delay;
+        }, timeout);
+    }
 }
 
 function stopPC(callee) {

@@ -13,8 +13,8 @@ likeform {
 
 video {
     background: #222;
-    /*width: 50%;*/
-    /*height: 240px;*/
+    width: 400px;
+    height: 300px;
 }
 
 .video-label{
